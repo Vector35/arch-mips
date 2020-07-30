@@ -386,16 +386,9 @@ bool GetLowLevelILForInstruction(Architecture* arch, uint64_t addr, LowLevelILFu
 		case MIPS_JALR:
 		case MIPS_JALR_HB:
 			{
-				uint32_t returnReg = 0;
 				uint32_t operand = 1;
-				if (instr.operands[1].operandClass == NONE)
+				if (instr.operands[1].operandClass != NONE)
 				{
-					//If there is only one operand then rd is an implied first register
-					returnReg = 31;
-				}
-				else
-				{
-					returnReg = op1.reg;
 					operand = 2;
 				}
 				il.AddInstruction(il.Call(ReadILOperand(il, instr, operand, addrSize, true)));
