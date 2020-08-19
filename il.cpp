@@ -588,7 +588,7 @@ bool GetLowLevelILForInstruction(Architecture* arch, uint64_t addr, LowLevelILFu
 			il.AddInstruction(SetRegisterOrNop(il, 4, op1.reg, il.ShiftLeft(4, ReadILOperand(il, instr, 2), ReadILOperand(il, instr, 3))));
 			break;
 		case MIPS_SB:
-			il.AddInstruction(il.Store(1, GetILOperandMemoryAddress(il, op2, addrSize), ReadILOperand(il, instr, 1)));
+			il.AddInstruction(il.Store(1, GetILOperandMemoryAddress(il, op2, addrSize), il.LowPart(1, ReadILOperand(il, instr, 1))));
 			break;
 		case MIPS_TRAP:
 			il.AddInstruction(il.Trap(0));
@@ -643,13 +643,13 @@ bool GetLowLevelILForInstruction(Architecture* arch, uint64_t addr, LowLevelILFu
 			il.AddInstruction(il.Unimplemented());
 			break;
 		case MIPS_SEB:
-			il.AddInstruction(SetRegisterOrNop(il, 4, op1.reg, il.SignExtend(1, ReadILOperand(il, instr, 2))));
+			il.AddInstruction(SetRegisterOrNop(il, 4, op1.reg, il.SignExtend(4, il.LowPart(1, ReadILOperand(il, instr, 2)))));
 			break;
 		case MIPS_SEH:
-			il.AddInstruction(SetRegisterOrNop(il, 4, op1.reg, il.SignExtend(2, ReadILOperand(il, instr, 2))));
+			il.AddInstruction(SetRegisterOrNop(il, 4, op1.reg, il.SignExtend(4, il.LowPart(2, ReadILOperand(il, instr, 2)))));
 			break;
 		case MIPS_SH:
-			il.AddInstruction(il.Store(2, GetILOperandMemoryAddress(il, op2, addrSize), ReadILOperand(il, instr, 1)));
+			il.AddInstruction(il.Store(2, GetILOperandMemoryAddress(il, op2, addrSize), il.LowPart(2, ReadILOperand(il, instr, 1))));
 			break;
 		case MIPS_SRL:
 		case MIPS_SRLV:
