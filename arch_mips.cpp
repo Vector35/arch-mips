@@ -386,6 +386,11 @@ public:
 		return 4;
 	}
 
+	virtual bool CanAssemble() override
+	{
+		return true;
+	}
+
 	bool Assemble(const string& code, uint64_t addr, DataBuffer& result, string& errors) override
 	{
 		(void)addr;
