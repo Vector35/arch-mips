@@ -269,7 +269,7 @@ def main():
    
     brute = False
     instructions = []
-    verbose = False;
+    verbose = False
     if sys.argv[1] == "-v":
         verbose = True
         sys.argv = sys.argv[1:]
