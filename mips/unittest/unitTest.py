@@ -189,7 +189,7 @@ def disassemble_binja(instruction, baseAddress):
     for a in xrange(len(instBuff)):
         instBuff[a] = '\0'
     for i,a in enumerate(instruction):
-        disasmBuff[i] = a;
+        disasmBuff[i] = a
     # uint32_t mips_decompose(
     #		uint32_t instructionValue, 
     #		Instruction* restrict instruction,
