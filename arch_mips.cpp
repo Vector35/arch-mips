@@ -559,8 +559,8 @@ public:
 		else if (InstructionIsUnalignedMemAccess(instr) && len >= 8
 			&& Disassemble(data + 4, addr + 4, len - 4, secondInstr))
 		{
-			Instruction* left;
-			Instruction* right;
+			Instruction* left = nullptr;
+			Instruction* right = nullptr;
 			Instruction* base;
 			uint32_t addrToUse;
 			bool store = false;
