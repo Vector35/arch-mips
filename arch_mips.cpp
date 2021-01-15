@@ -1075,6 +1075,11 @@ public:
 		return vector<uint32_t> { REG_S0, REG_S1, REG_S2, REG_S3, REG_S4, REG_S5, REG_S6, REG_S7,
 			REG_GP, REG_FP };
 	}
+
+	virtual bool IsEligibleForHeuristics() override
+	{
+		return false;
+	}
 };
 
 class MipsImportedFunctionRecognizer: public FunctionRecognizer
