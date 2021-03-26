@@ -468,91 +468,107 @@ public:
 				return false;
 			}
 
-			//Process the delay instruction first
-			LowLevelILLabel trueCode, falseCode;
-			if (InstructionIsBranchLikely(instr))
+			bool status = true;
+			bool isBranchLikely = InstructionIsBranchLikely(instr);
+			if (isBranchLikely)
 			{
+				InstructionInfo instrInfo;
+				LowLevelILLabel trueCode, falseCode;
+				SetInstructionInfoForInstruction(addr, instr, instrInfo);
 				il.AddInstruction(il.If(GetConditionForInstruction(il, instr), trueCode, falseCode));
 				il.MarkLabel(trueCode);
-			}
-
-			il.SetCurrentAddress(this, addr + instr.size);
-
-			// ensure we have space to preserve one register in case the delay slot
-			// clobbers a value needed by the branch. this will be eliminated when
-			// normal LLIL is generated from Lifted IL if we don't need it
-			size_t nop = il.Nop();
-			il.AddInstruction(nop);
-
-			GetLowLevelILForInstruction(this, addr + instr.size, il, secondInstr, GetAddressSize());
-
-			if (InstructionIsBranchLikely(instr))
-			{
+				il.SetCurrentAddress(this, addr + instr.size);
+				GetLowLevelILForInstruction(this, addr + instr.size, il, secondInstr, GetAddressSize());
+				for (size_t i = 0; i < instrInfo.branchCount; i++)
+				{
+					if (instrInfo.branchType[i] == TrueBranch)
+					{
+						BNLowLevelILLabel* trueLabel = il.GetLabelForAddress(this, instrInfo.branchTarget[i]);
+						if (trueLabel)
+							il.AddInstruction(il.Goto(*trueLabel));
+						else
+							il.AddInstruction(il.Jump(il.ConstPointer(GetAddressSize(), instrInfo.branchTarget[i])));
+						break;
+					}
+				}
 				il.MarkLabel(falseCode);
-			}
-
-			LowLevelILInstruction delayed;
-			uint32_t clobbered = BN_INVALID_REGISTER;
-			size_t instrIdx = il.GetInstructionCount();
-			if (instrIdx != 0)
-			{
-				// FIXME: this assumes that the instruction in the delay slot
-				// only changed registers in the last IL instruction that it
-				// added -- strictly speaking we should be starting from the
-				// first instruction that could have been added and follow all
-				// paths to the end of that instruction.
-				delayed = il.GetInstruction(instrIdx - 1);
-				if ((delayed.operation == LLIL_SET_REG) && (delayed.address == (addr + instr.size)))
-					clobbered = delayed.GetDestRegister<LLIL_SET_REG>();
-			}
-
-			bool status = true;
-			il.SetCurrentAddress(this, addr);
-
-			if ((instr.operation == MIPS_JR) && (instr.operands[0].reg == REG_T9) &&
-					(secondInstr.operation == MIPS_ADDIU) && (secondInstr.operands[0].reg == REG_SP) &&
-					(secondInstr.operands[1].reg == REG_SP) && (secondInstr.operands[2].immediate < 0x80000000))
-			{
-				il.AddInstruction(il.TailCall(il.Register(4, REG_T9)));
 			}
 			else
 			{
-				status = GetLowLevelILForInstruction(this, addr, il, instr, GetAddressSize());
-			}
+				size_t nop;
 
-			if (clobbered != BN_INVALID_REGISTER)
-			{
-				// FIXME: this approach will break with any of the REG_SPLIT operations as well
-				// any use of partial registers -- this approach needs to be expanded substantially
-				// to be correct in the general case. also, it uses LLIL_TEMP(1) for the simple reason
-				// that the mips lifter only uses LLIL_TEMP(0) at the moment.
-				LowLevelILInstruction lifted = il.GetInstruction(instrIdx);
-				if ((lifted.operation == LLIL_IF) && (lifted.address == addr))
+				// ensure we have space to preserve one register in case the delay slot
+				// clobbers a value needed by the branch. this will be eliminated when
+				// normal LLIL is generated from Lifted IL if we don't need it
+				il.SetCurrentAddress(this, addr + instr.size);
+				nop = il.Nop();
+				il.AddInstruction(nop);
+
+				GetLowLevelILForInstruction(this, addr + instr.size, il, secondInstr, GetAddressSize());
+
+				LowLevelILInstruction delayed;
+				uint32_t clobbered = BN_INVALID_REGISTER;
+				size_t instrIdx = il.GetInstructionCount();
+				if (instrIdx != 0)
 				{
-					bool replace = false;
+					// FIXME: this assumes that the instruction in the delay slot
+					// only changed registers in the last IL instruction that it
+					// added -- strictly speaking we should be starting from the
+					// first instruction that could have been added and follow all
+					// paths to the end of that instruction.
+					delayed = il.GetInstruction(instrIdx - 1);
+					if ((delayed.operation == LLIL_SET_REG) && (delayed.address == (addr + instr.size)))
+						clobbered = delayed.GetDestRegister<LLIL_SET_REG>();
+				}
 
-					lifted.VisitExprs([&](const LowLevelILInstruction& expr) -> bool {
-						if (expr.operation == LLIL_REG && expr.GetSourceRegister<LLIL_REG>() == clobbered)
-						{
-							// Replace all reads from the clobbered register to a temp register
-							// that we're going to set (by replacing the earlier nop we added)
-							il.ReplaceExpr(expr.exprIndex, il.Register(expr.size, LLIL_TEMP(1)));
-							replace = true;
-						}
-						return true;
-					});
+				il.SetCurrentAddress(this, addr);
 
-					if (replace)
+				if ((instr.operation == MIPS_JR) && (instr.operands[0].reg == REG_T9) &&
+						(secondInstr.operation == MIPS_ADDIU) && (secondInstr.operands[0].reg == REG_SP) &&
+						(secondInstr.operands[1].reg == REG_SP) && (secondInstr.operands[2].immediate < 0x80000000))
+				{
+					il.AddInstruction(il.TailCall(il.Register(4, REG_T9)));
+				}
+				else
+				{
+					status = GetLowLevelILForInstruction(this, addr, il, instr, GetAddressSize());
+				}
+
+				if (clobbered != BN_INVALID_REGISTER)
+				{
+					// FIXME: this approach will break with any of the REG_SPLIT operations as well
+					// any use of partial registers -- this approach needs to be expanded substantially
+					// to be correct in the general case. also, it uses LLIL_TEMP(1) for the simple reason
+					// that the mips lifter only uses LLIL_TEMP(0) at the moment.
+					LowLevelILInstruction lifted = il.GetInstruction(instrIdx);
+					if ((lifted.operation == LLIL_IF) && (lifted.address == addr))
 					{
-						// Preserve the value of the clobbered register by replacing the LLIL_NOP
-						// instruction we added at the beginning with an assignment to the temp
-						// register we rewrote in the LLIL_IF condition expression
-						il.SetCurrentAddress(this, addr + instr.size);
-						il.ReplaceExpr(nop, il.SetRegister(delayed.size, LLIL_TEMP(1), il.Register(delayed.size, delayed.GetDestRegister<LLIL_SET_REG>())));
-						il.SetCurrentAddress(this, addr);
+						bool replace = false;
+
+						lifted.VisitExprs([&](const LowLevelILInstruction& expr) -> bool {
+							if (expr.operation == LLIL_REG && expr.GetSourceRegister<LLIL_REG>() == clobbered)
+							{
+								// Replace all reads from the clobbered register to a temp register
+								// that we're going to set (by replacing the earlier nop we added)
+								il.ReplaceExpr(expr.exprIndex, il.Register(expr.size, LLIL_TEMP(1)));
+								replace = true;
+							}
+							return true;
+						});
+
+						if (replace)
+						{
+							// Preserve the value of the clobbered register by replacing the LLIL_NOP
+							// instruction we added at the beginning with an assignment to the temp
+							// register we rewrote in the LLIL_IF condition expression
+							il.SetCurrentAddress(this, addr + instr.size);
+							il.ReplaceExpr(nop, il.SetRegister(delayed.size, LLIL_TEMP(1), il.Register(delayed.size, delayed.GetDestRegister<LLIL_SET_REG>())));
+							il.SetCurrentAddress(this, addr);
+						}
 					}
 				}
 			}
+
 			len = instr.size + secondInstr.size;
 			return status;
 		}
