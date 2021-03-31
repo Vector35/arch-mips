@@ -188,7 +188,7 @@ static Operation mips_special2_table[8][8] = {
 
 static Operation mips_special3_table[8][8] = {
 	{MIPS_EXT,     MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INS,     MIPS_INVALID, MIPS_INVALID, MIPS_INVALID},
-	{MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID},
+	{MIPS_INVALID, MIPS_INVALID, MIPS_LX,      MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID},
 	{MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID},
 	{MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID},
 	{MIPS_BSHFL,   MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID},
@@ -465,6 +465,7 @@ static const char* const OperationStrings[] = {
 		"jr",
 		"lb",
 		"lbu",
+		"lbux",
 		"ld",
 		"ldc1",
 		"ldc2",
@@ -475,6 +476,7 @@ static const char* const OperationStrings[] = {
 		"lh",
 		"lhi",
 		"lhu",
+		"lhx",
 		"li",
 		"ll",
 		"lld",
@@ -488,7 +490,9 @@ static const char* const OperationStrings[] = {
 		"lwl",
 		"lwr",
 		"lwu",
+		"lwx",
 		"lwxc1",
+		"lx",
 		"madd.d",
 		"madd.ps",
 		"madd.s",
@@ -894,6 +898,18 @@ uint32_t mips_decompose_instruction(
 	{
 		switch (instruction->operation)
 		{
+			case MIPS_LX:
+				//MIPSDSP extension
+				switch (ins.r.sa)
+				{
+					case 0x00: instruction->operation = MIPS_LWX; break;
+					case 0x04: instruction->operation = MIPS_LHX; break;
+					case 0x06: instruction->operation = MIPS_LBUX; break;
+					default:
+						return 1;
+				}
+				break;
+
 			case MIPS_BSHFL:
 				//Version 5 only but no need for a check
 				switch (ins.r.sa)
@@ -1504,6 +1520,18 @@ uint32_t mips_decompose_instruction(
 				return 1;
 			INS_2(REG, ins.f.fd + FPREG_F0, REG, ins.f.fs + FPREG_F0)
 			break;
+
+		case MIPS_LBUX:
+		case MIPS_LHX:
+		case MIPS_LWX:
+			// MIPSDSP extensions
+			instruction->operands[0].operandClass = REG;
+			instruction->operands[1].operandClass = MEM_REG;
+			instruction->operands[0].reg = ins.r.rd;
+			instruction->operands[1].reg = ins.r.rs;
+			instruction->operands[1].immediate = ins.r.rt;
+			break;
+
 		case MIPS_LB:
 		case MIPS_LBU:
 		case MIPS_LD:
