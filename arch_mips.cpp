@@ -6,9 +6,9 @@
 #include <string.h>
 
 #include "binaryninjaapi.h"
+#include "il.h"
 #include "lowlevelilinstruction.h"
 #include "mips.h"
-#include "il.h"
 
 using namespace BinaryNinja;
 using namespace mips;
@@ -16,210 +16,175 @@ using namespace std;
 
 
 #if defined(_MSC_VER)
-#define snprintf _snprintf
+	#define snprintf _snprintf
 #endif
 
 uint32_t bswap32(uint32_t x)
 {
-	return	((x << 24) & 0xff000000 ) |
-		((x <<  8) & 0x00ff0000 ) |
-		((x >>  8) & 0x0000ff00 ) |
-		((x >> 24) & 0x000000ff );
+	return ((x << 24) & 0xff000000) | ((x << 8) & 0x00ff0000) | ((x >> 8) & 0x0000ff00) |
+	       ((x >> 24) & 0x000000ff);
 }
 
 enum ElfMipsRelocationType : uint32_t
 {
-	R_MIPS_NONE           = 0,
-	R_MIPS_16             = 1,
-	R_MIPS_32             = 2,
-	R_MIPS_REL32          = 3,
-	R_MIPS_26             = 4,
-	R_MIPS_HI16           = 5,
-	R_MIPS_LO16           = 6,
-	R_MIPS_GPREL16        = 7,
-	R_MIPS_LITERAL        = 8,
-	R_MIPS_GOT16          = 9,
-	R_MIPS_PC16           = 10,
-	R_MIPS_CALL16         = 11,
-	R_MIPS_GPREL32        = 12,
+	R_MIPS_NONE = 0,
+	R_MIPS_16 = 1,
+	R_MIPS_32 = 2,
+	R_MIPS_REL32 = 3,
+	R_MIPS_26 = 4,
+	R_MIPS_HI16 = 5,
+	R_MIPS_LO16 = 6,
+	R_MIPS_GPREL16 = 7,
+	R_MIPS_LITERAL = 8,
+	R_MIPS_GOT16 = 9,
+	R_MIPS_PC16 = 10,
+	R_MIPS_CALL16 = 11,
+	R_MIPS_GPREL32 = 12,
 	// The remaining relocs are defined on Irix, although they are not
 	// in the MIPS ELF ABI.
-	R_MIPS_UNUSED1         =  13,
-	R_MIPS_UNUSED2         =  14,
-	R_MIPS_UNUSED3         =  15,
-	R_MIPS_SHIFT5          =  16,
-	R_MIPS_SHIFT6          =  17,
-	R_MIPS_64              =  18,
-	R_MIPS_GOT_DISP        =  19,
-	R_MIPS_GOT_PAGE        =  20,
-	R_MIPS_GOT_OFST        =  21,
-	//The following two relocation types are specified in the MIPS ABI
-	//conformance guide version 1.2 but not yet in the psABI.
-	R_MIPS_GOTHI16         =  22,
-	R_MIPS_GOTLO16         =  23,
-	R_MIPS_SUB             =  24,
-	R_MIPS_INSERT_A        =  25,
-	R_MIPS_INSERT_B        =  26,
-	R_MIPS_DELETE          =  27,
-	R_MIPS_HIGHER          =  28,
-	R_MIPS_HIGHEST         =  29,
+	R_MIPS_UNUSED1 = 13,
+	R_MIPS_UNUSED2 = 14,
+	R_MIPS_UNUSED3 = 15,
+	R_MIPS_SHIFT5 = 16,
+	R_MIPS_SHIFT6 = 17,
+	R_MIPS_64 = 18,
+	R_MIPS_GOT_DISP = 19,
+	R_MIPS_GOT_PAGE = 20,
+	R_MIPS_GOT_OFST = 21,
 	// The following two relocation types are specified in the MIPS ABI
 	// conformance guide version 1.2 but not yet in the psABI.
-	R_MIPS_CALLHI16        = 30,
-	R_MIPS_CALLLO16        = 31,
-	R_MIPS_SCN_DISP        = 32,
-	R_MIPS_REL16           = 33,
-	R_MIPS_ADD_IMMEDIATE   = 34,
-	R_MIPS_PJUMP           = 35,
-	R_MIPS_RELGOT          = 36,
-	R_MIPS_JALR            = 37,
-	R_MIPS_TLS_DTPMOD32    = 38,  // Module number 32 bit
-	R_MIPS_TLS_DTPREL32    = 39,  // Module-relative offset 32 bit
-	R_MIPS_TLS_DTPMOD64    = 40,  // Module number 64 bit
-	R_MIPS_TLS_DTPREL64    = 41,  // Module-relative offset 64 bit
-	R_MIPS_TLS_GD          = 42,  // 16 bit GOT offset for GD
-	R_MIPS_TLS_LDM         = 43,  // 16 bit GOT offset for LDM
+	R_MIPS_GOTHI16 = 22,
+	R_MIPS_GOTLO16 = 23,
+	R_MIPS_SUB = 24,
+	R_MIPS_INSERT_A = 25,
+	R_MIPS_INSERT_B = 26,
+	R_MIPS_DELETE = 27,
+	R_MIPS_HIGHER = 28,
+	R_MIPS_HIGHEST = 29,
+	// The following two relocation types are specified in the MIPS ABI
+	// conformance guide version 1.2 but not yet in the psABI.
+	R_MIPS_CALLHI16 = 30,
+	R_MIPS_CALLLO16 = 31,
+	R_MIPS_SCN_DISP = 32,
+	R_MIPS_REL16 = 33,
+	R_MIPS_ADD_IMMEDIATE = 34,
+	R_MIPS_PJUMP = 35,
+	R_MIPS_RELGOT = 36,
+	R_MIPS_JALR = 37,
+	R_MIPS_TLS_DTPMOD32 = 38,     // Module number 32 bit
+	R_MIPS_TLS_DTPREL32 = 39,     // Module-relative offset 32 bit
+	R_MIPS_TLS_DTPMOD64 = 40,     // Module number 64 bit
+	R_MIPS_TLS_DTPREL64 = 41,     // Module-relative offset 64 bit
+	R_MIPS_TLS_GD = 42,           // 16 bit GOT offset for GD
+	R_MIPS_TLS_LDM = 43,          // 16 bit GOT offset for LDM
 	R_MIPS_TLS_DTPREL_HI16 = 44,  // Module-relative offset, high 16 bits
 	R_MIPS_TLS_DTPREL_LO16 = 45,  // Module-relative offset, low 16 bits
-	R_MIPS_TLS_GOTTPREL    = 46,  // 16 bit GOT offset for IE
-	R_MIPS_TLS_TPREL32     = 47,  // TP-relative offset, 32 bit
-	R_MIPS_TLS_TPREL64     = 48,  // TP-relative offset, 64 bit
-	R_MIPS_TLS_TPREL_HI16  = 49,  // TP-relative offset, high 16 bits
-	R_MIPS_TLS_TPREL_LO16  = 50,  // TP-relative offset, low 16 bits
-	R_MIPS_GLOB_DAT        = 51,
+	R_MIPS_TLS_GOTTPREL = 46,     // 16 bit GOT offset for IE
+	R_MIPS_TLS_TPREL32 = 47,      // TP-relative offset, 32 bit
+	R_MIPS_TLS_TPREL64 = 48,      // TP-relative offset, 64 bit
+	R_MIPS_TLS_TPREL_HI16 = 49,   // TP-relative offset, high 16 bits
+	R_MIPS_TLS_TPREL_LO16 = 50,   // TP-relative offset, low 16 bits
+	R_MIPS_GLOB_DAT = 51,
 
 	// This range is reserved for vendor specific relocations.
-	R_MIPS_LOVENDOR  =  100,
-	R_MIPS_COPY      =  126,
-	R_MIPS_JUMP_SLOT =  127,
-	R_MIPS_HIVENDOR  =  127
+	R_MIPS_LOVENDOR = 100,
+	R_MIPS_COPY = 126,
+	R_MIPS_JUMP_SLOT = 127,
+	R_MIPS_HIVENDOR = 127
 };
 
 
 static const char* GetRelocationString(ElfMipsRelocationType rel)
 {
-	static map<ElfMipsRelocationType, const char*> relocTable = {
-		{ R_MIPS_NONE, "R_MIPS_NONE"},
-		{ R_MIPS_16, "R_MIPS_16"},
-		{ R_MIPS_32, "R_MIPS_32"},
-		{ R_MIPS_REL32, "R_MIPS_REL32"},
-		{ R_MIPS_26, "R_MIPS_26"},
-		{ R_MIPS_HI16, "R_MIPS_HI16"},
-		{ R_MIPS_LO16, "R_MIPS_LO16"},
-		{ R_MIPS_GPREL16, "R_MIPS_GPREL16"},
-		{ R_MIPS_LITERAL, "R_MIPS_LITERAL"},
-		{ R_MIPS_GOT16, "R_MIPS_GOT16"},
-		{ R_MIPS_PC16, "R_MIPS_PC16"},
-		{ R_MIPS_CALL16, "R_MIPS_CALL16"},
-		{ R_MIPS_GPREL32, "R_MIPS_GPREL32"},
-		{ R_MIPS_UNUSED1, "R_MIPS_UNUSED1"},
-		{ R_MIPS_UNUSED2, "R_MIPS_UNUSED2"},
-		{ R_MIPS_UNUSED3, "R_MIPS_UNUSED3"},
-		{ R_MIPS_SHIFT5, "R_MIPS_SHIFT5"},
-		{ R_MIPS_SHIFT6, "R_MIPS_SHIFT6"},
-		{ R_MIPS_64, "R_MIPS_64"},
-		{ R_MIPS_GOT_DISP, "R_MIPS_GOT_DISP"},
-		{ R_MIPS_GOT_PAGE, "R_MIPS_GOT_PAGE"},
-		{ R_MIPS_GOT_OFST, "R_MIPS_GOT_OFST"},
-		{ R_MIPS_GOTHI16, "R_MIPS_GOTHI16"},
-		{ R_MIPS_GOTLO16, "R_MIPS_GOTLO16"},
-		{ R_MIPS_SUB, "R_MIPS_SUB"},
-		{ R_MIPS_INSERT_A, "R_MIPS_INSERT_A"},
-		{ R_MIPS_INSERT_B, "R_MIPS_INSERT_B"},
-		{ R_MIPS_DELETE, "R_MIPS_DELETE"},
-		{ R_MIPS_HIGHER, "R_MIPS_HIGHER"},
-		{ R_MIPS_HIGHEST, "R_MIPS_HIGHEST"},
-		{ R_MIPS_CALLHI16, "R_MIPS_CALLHI16"},
-		{ R_MIPS_CALLLO16, "R_MIPS_CALLLO16"},
-		{ R_MIPS_SCN_DISP, "R_MIPS_SCN_DISP"},
-		{ R_MIPS_REL16, "R_MIPS_REL16"},
-		{ R_MIPS_ADD_IMMEDIATE, "R_MIPS_ADD_IMMEDIATE"},
-		{ R_MIPS_PJUMP, "R_MIPS_PJUMP"},
-		{ R_MIPS_RELGOT, "R_MIPS_RELGOT"},
-		{ R_MIPS_JALR, "R_MIPS_JALR"},
-		{ R_MIPS_TLS_DTPMOD32, "R_MIPS_TLS_DTPMOD32"},
-		{ R_MIPS_TLS_DTPREL32, "R_MIPS_TLS_DTPREL32"},
-		{ R_MIPS_TLS_DTPMOD64, "R_MIPS_TLS_DTPMOD64"},
-		{ R_MIPS_TLS_DTPREL64, "R_MIPS_TLS_DTPREL64"},
-		{ R_MIPS_TLS_GD, "R_MIPS_TLS_GD"},
-		{ R_MIPS_TLS_LDM, "R_MIPS_TLS_LDM"},
-		{ R_MIPS_TLS_DTPREL_HI16, "R_MIPS_TLS_DTPREL_HI16"},
-		{ R_MIPS_TLS_DTPREL_LO16, "R_MIPS_TLS_DTPREL_LO16"},
-		{ R_MIPS_TLS_GOTTPREL, "R_MIPS_TLS_GOTTPREL"},
-		{ R_MIPS_TLS_TPREL32, "R_MIPS_TLS_TPREL32"},
-		{ R_MIPS_TLS_TPREL64, "R_MIPS_TLS_TPREL64"},
-		{ R_MIPS_TLS_TPREL_HI16, "R_MIPS_TLS_TPREL_HI16"},
-		{ R_MIPS_TLS_TPREL_LO16, "R_MIPS_TLS_TPREL_LO16"},
-		{ R_MIPS_GLOB_DAT, "R_MIPS_GLOB_DAT"},
-		{ R_MIPS_LOVENDOR, "R_MIPS_LOVENDOR"},
-		{ R_MIPS_COPY, "R_MIPS_COPY"},
-		{ R_MIPS_JUMP_SLOT, "R_MIPS_JUMP_SLOT"},
-		{ R_MIPS_HIVENDOR, "R_MIPS_HIVENDOR"}
-	};
+	static map<ElfMipsRelocationType, const char*> relocTable = {{R_MIPS_NONE, "R_MIPS_NONE"},
+	    {R_MIPS_16, "R_MIPS_16"}, {R_MIPS_32, "R_MIPS_32"}, {R_MIPS_REL32, "R_MIPS_REL32"},
+	    {R_MIPS_26, "R_MIPS_26"}, {R_MIPS_HI16, "R_MIPS_HI16"}, {R_MIPS_LO16, "R_MIPS_LO16"},
+	    {R_MIPS_GPREL16, "R_MIPS_GPREL16"}, {R_MIPS_LITERAL, "R_MIPS_LITERAL"},
+	    {R_MIPS_GOT16, "R_MIPS_GOT16"}, {R_MIPS_PC16, "R_MIPS_PC16"},
+	    {R_MIPS_CALL16, "R_MIPS_CALL16"}, {R_MIPS_GPREL32, "R_MIPS_GPREL32"},
+	    {R_MIPS_UNUSED1, "R_MIPS_UNUSED1"}, {R_MIPS_UNUSED2, "R_MIPS_UNUSED2"},
+	    {R_MIPS_UNUSED3, "R_MIPS_UNUSED3"}, {R_MIPS_SHIFT5, "R_MIPS_SHIFT5"},
+	    {R_MIPS_SHIFT6, "R_MIPS_SHIFT6"}, {R_MIPS_64, "R_MIPS_64"},
+	    {R_MIPS_GOT_DISP, "R_MIPS_GOT_DISP"}, {R_MIPS_GOT_PAGE, "R_MIPS_GOT_PAGE"},
+	    {R_MIPS_GOT_OFST, "R_MIPS_GOT_OFST"}, {R_MIPS_GOTHI16, "R_MIPS_GOTHI16"},
+	    {R_MIPS_GOTLO16, "R_MIPS_GOTLO16"}, {R_MIPS_SUB, "R_MIPS_SUB"},
+	    {R_MIPS_INSERT_A, "R_MIPS_INSERT_A"}, {R_MIPS_INSERT_B, "R_MIPS_INSERT_B"},
+	    {R_MIPS_DELETE, "R_MIPS_DELETE"}, {R_MIPS_HIGHER, "R_MIPS_HIGHER"},
+	    {R_MIPS_HIGHEST, "R_MIPS_HIGHEST"}, {R_MIPS_CALLHI16, "R_MIPS_CALLHI16"},
+	    {R_MIPS_CALLLO16, "R_MIPS_CALLLO16"}, {R_MIPS_SCN_DISP, "R_MIPS_SCN_DISP"},
+	    {R_MIPS_REL16, "R_MIPS_REL16"}, {R_MIPS_ADD_IMMEDIATE, "R_MIPS_ADD_IMMEDIATE"},
+	    {R_MIPS_PJUMP, "R_MIPS_PJUMP"}, {R_MIPS_RELGOT, "R_MIPS_RELGOT"},
+	    {R_MIPS_JALR, "R_MIPS_JALR"}, {R_MIPS_TLS_DTPMOD32, "R_MIPS_TLS_DTPMOD32"},
+	    {R_MIPS_TLS_DTPREL32, "R_MIPS_TLS_DTPREL32"}, {R_MIPS_TLS_DTPMOD64, "R_MIPS_TLS_DTPMOD64"},
+	    {R_MIPS_TLS_DTPREL64, "R_MIPS_TLS_DTPREL64"}, {R_MIPS_TLS_GD, "R_MIPS_TLS_GD"},
+	    {R_MIPS_TLS_LDM, "R_MIPS_TLS_LDM"}, {R_MIPS_TLS_DTPREL_HI16, "R_MIPS_TLS_DTPREL_HI16"},
+	    {R_MIPS_TLS_DTPREL_LO16, "R_MIPS_TLS_DTPREL_LO16"},
+	    {R_MIPS_TLS_GOTTPREL, "R_MIPS_TLS_GOTTPREL"}, {R_MIPS_TLS_TPREL32, "R_MIPS_TLS_TPREL32"},
+	    {R_MIPS_TLS_TPREL64, "R_MIPS_TLS_TPREL64"}, {R_MIPS_TLS_TPREL_HI16, "R_MIPS_TLS_TPREL_HI16"},
+	    {R_MIPS_TLS_TPREL_LO16, "R_MIPS_TLS_TPREL_LO16"}, {R_MIPS_GLOB_DAT, "R_MIPS_GLOB_DAT"},
+	    {R_MIPS_LOVENDOR, "R_MIPS_LOVENDOR"}, {R_MIPS_COPY, "R_MIPS_COPY"},
+	    {R_MIPS_JUMP_SLOT, "R_MIPS_JUMP_SLOT"}, {R_MIPS_HIVENDOR, "R_MIPS_HIVENDOR"}};
 
 	if (relocTable.count(rel))
 		return relocTable.at(rel);
 	return "Unknown MIPS relocation";
 }
-class MipsArchitecture: public Architecture
+class MipsArchitecture : public Architecture
 {
-protected:
+ protected:
 	size_t m_bits;
 	BNEndianness m_endian;
 
 	virtual bool Disassemble(const uint8_t* data, uint64_t addr, size_t maxLen, Instruction& result)
 	{
 		memset(&result, 0, sizeof(result));
-		if (mips_decompose((uint32_t*)data, maxLen,  &result, MIPS_32, addr, m_endian) != 0)
+		if (mips_decompose((uint32_t*)data, maxLen, &result, MIPS_32, addr, m_endian) != 0)
 			return false;
 		return true;
 	}
 
-	virtual size_t GetAddressSize() const override
-	{
-		return 4;
-	}
+	virtual size_t GetAddressSize() const override { return 4; }
 
 	bool InstructionHasBranchDelay(const Instruction& instr)
 	{
 		switch (instr.operation)
 		{
-			case MIPS_B:
-			case MIPS_BAL:
-			case MIPS_BEQ:
-			case MIPS_BEQL:
-			case MIPS_BEQZ:
-			case MIPS_BGEZ:
-			case MIPS_BGEZAL:
-			case MIPS_BGEZALL:
-			case MIPS_BGEZL:
-			case MIPS_BGTZ:
-			case MIPS_BGTZL:
-			case MIPS_BLEZ:
-			case MIPS_BLEZL:
-			case MIPS_BLTZ:
-			case MIPS_BLTZAL:
-			case MIPS_BLTZALL:
-			case MIPS_BLTZL:
-			case MIPS_BNE:
-			case MIPS_BNEL:
-			case MIPS_JR:
-			case MIPS_JR_HB:
-			case MIPS_J:
-			case MIPS_JAL:
-			case MIPS_JALR:
-			case MIPS_JALR_HB:
-			case MIPS_BC1F:
-			case MIPS_BC1FL:
-			case MIPS_BC1T:
-			case MIPS_BC1TL:
-			case MIPS_BC2FL:
-			case MIPS_BC2TL:
-			case MIPS_BC2F:
-			case MIPS_BC2T:
-				return true;
-			default:
-				return false;
+		case MIPS_B:
+		case MIPS_BAL:
+		case MIPS_BEQ:
+		case MIPS_BEQL:
+		case MIPS_BEQZ:
+		case MIPS_BGEZ:
+		case MIPS_BGEZAL:
+		case MIPS_BGEZALL:
+		case MIPS_BGEZL:
+		case MIPS_BGTZ:
+		case MIPS_BGTZL:
+		case MIPS_BLEZ:
+		case MIPS_BLEZL:
+		case MIPS_BLTZ:
+		case MIPS_BLTZAL:
+		case MIPS_BLTZALL:
+		case MIPS_BLTZL:
+		case MIPS_BNE:
+		case MIPS_BNEL:
+		case MIPS_JR:
+		case MIPS_JR_HB:
+		case MIPS_J:
+		case MIPS_JAL:
+		case MIPS_JALR:
+		case MIPS_JALR_HB:
+		case MIPS_BC1F:
+		case MIPS_BC1FL:
+		case MIPS_BC1T:
+		case MIPS_BC1TL:
+		case MIPS_BC2FL:
+		case MIPS_BC2TL:
+		case MIPS_BC2F:
+		case MIPS_BC2T:
+			return true;
+		default:
+			return false;
 		}
 	}
 
@@ -243,34 +208,35 @@ protected:
 	{
 		switch (instr.operation)
 		{
-			case MIPS_BEQZ:
-			case MIPS_BGEZ:
-			case MIPS_BGTZ:
-			case MIPS_BLEZ:
-			case MIPS_BLTZ:
-			case MIPS_BGEZL:
-			case MIPS_BGTZL:
-			case MIPS_BLEZL:
-			case MIPS_BLTZL:
-			case MIPS_BEQ:
-			case MIPS_BNE:
-			case MIPS_BEQL:
-			case MIPS_BNEL:
-			case MIPS_BC1F:
-			case MIPS_BC1FL:
-			case MIPS_BC1T:
-			case MIPS_BC1TL:
-			case MIPS_BC2FL:
-			case MIPS_BC2TL:
-			case MIPS_BC2F:
-			case MIPS_BC2T:
-				return true;
-			default:
-				return false;
+		case MIPS_BEQZ:
+		case MIPS_BGEZ:
+		case MIPS_BGTZ:
+		case MIPS_BLEZ:
+		case MIPS_BLTZ:
+		case MIPS_BGEZL:
+		case MIPS_BGTZL:
+		case MIPS_BLEZL:
+		case MIPS_BLTZL:
+		case MIPS_BEQ:
+		case MIPS_BNE:
+		case MIPS_BEQL:
+		case MIPS_BNEL:
+		case MIPS_BC1F:
+		case MIPS_BC1FL:
+		case MIPS_BC1T:
+		case MIPS_BC1TL:
+		case MIPS_BC2FL:
+		case MIPS_BC2TL:
+		case MIPS_BC2F:
+		case MIPS_BC2T:
+			return true;
+		default:
+			return false;
 		}
 	}
 
-	void SetInstructionInfoForInstruction(uint64_t addr, const Instruction& instr, InstructionInfo& result)
+	void SetInstructionInfoForInstruction(
+	    uint64_t addr, const Instruction& instr, InstructionInfo& result)
 	{
 		result.length = 4;
 
@@ -278,21 +244,21 @@ protected:
 
 		switch (instr.operation)
 		{
-		//case MIPS_JALX: //This case jumps to a different processor mode microMIPS32/MIPS32/MIPS16e
+		// case MIPS_JALX: //This case jumps to a different processor mode microMIPS32/MIPS32/MIPS16e
 		//	break;
-		//Branch/jump and link immediate
+		// Branch/jump and link immediate
 		case MIPS_BAL:
 			if (instr.operands[0].immediate != addr + 8)
 				result.AddBranch(CallDestination, instr.operands[0].immediate, nullptr, hasBranchDelay);
 			else
-				result.branchDelay = true; // We have a "get pc" mnemonic; do nothing
+				result.branchDelay = true;  // We have a "get pc" mnemonic; do nothing
 			break;
 
 		case MIPS_JAL:
 			result.AddBranch(CallDestination, instr.operands[0].immediate, nullptr, hasBranchDelay);
 			break;
 
-		//Jmp to register register value is unknown
+		// Jmp to register register value is unknown
 		case MIPS_JALR:
 		case MIPS_JALR_HB:
 			result.branchDelay = true;
@@ -305,13 +271,13 @@ protected:
 			result.AddBranch(CallDestination, instr.operands[1].immediate, nullptr, hasBranchDelay);
 			break;
 
-		//Unconditional branch and jump
+		// Unconditional branch and jump
 		case MIPS_B:
 		case MIPS_J:
 			result.AddBranch(UnconditionalBranch, instr.operands[0].immediate, nullptr, hasBranchDelay);
 			break;
 
-		//Conditional branch instructions
+		// Conditional branch instructions
 		case MIPS_BEQZ:
 		case MIPS_BGEZ:
 		case MIPS_BGTZ:
@@ -322,7 +288,7 @@ protected:
 		case MIPS_BLEZL:
 		case MIPS_BLTZL:
 			result.AddBranch(TrueBranch, instr.operands[1].immediate, nullptr, hasBranchDelay);
-			//need to jump over the branch delay slot and current instruction
+			// need to jump over the branch delay slot and current instruction
 			result.AddBranch(FalseBranch, addr + 8, nullptr, hasBranchDelay);
 			break;
 
@@ -331,11 +297,12 @@ protected:
 		case MIPS_BEQL:
 		case MIPS_BNEL:
 			result.AddBranch(TrueBranch, instr.operands[2].immediate, nullptr, hasBranchDelay);
-			//need to jump over the branch delay slot and current instruction
+			// need to jump over the branch delay slot and current instruction
 			result.AddBranch(FalseBranch, addr + 8, nullptr, hasBranchDelay);
 			break;
 
-		//Jmp reg isntructions, if they are jumping to the return address register then it is a function return
+		// Jmp reg isntructions, if they are jumping to the return address register then it is a
+		// function return
 		case MIPS_JR:
 		case MIPS_JR_HB:
 			if (instr.operands[0].reg == REG_RA)
@@ -352,7 +319,7 @@ protected:
 		case MIPS_BC2F:
 		case MIPS_BC2T:
 			result.AddBranch(TrueBranch, instr.operands[0].immediate, nullptr, hasBranchDelay);
-			//need to jump over the branch delay slot and current instruction
+			// need to jump over the branch delay slot and current instruction
 			result.AddBranch(FalseBranch, addr + 8, nullptr, hasBranchDelay);
 			break;
 
@@ -361,43 +328,31 @@ protected:
 		}
 	}
 
-public:
-	MipsArchitecture(const std::string& name, BNEndianness endian): Architecture(name), m_bits(32), m_endian(endian)
-	{
-	}
+ public:
+	MipsArchitecture(const std::string& name, BNEndianness endian) :
+	    Architecture(name), m_bits(32), m_endian(endian)
+	{}
 
-	virtual BNEndianness GetEndianness() const override
-	{
-		return m_endian;
-	}
+	virtual BNEndianness GetEndianness() const override { return m_endian; }
 
-	virtual size_t GetInstructionAlignment() const override
-	{
-		return 4;
-	}
+	virtual size_t GetInstructionAlignment() const override { return 4; }
 
 	virtual size_t GetMaxInstructionLength() const override
 	{
-		return 8; // To disassemble delay slots, allow two instructions
+		return 8;  // To disassemble delay slots, allow two instructions
 	}
 
-	virtual size_t GetOpcodeDisplayLength() const override
-	{
-		return 4;
-	}
+	virtual size_t GetOpcodeDisplayLength() const override { return 4; }
 
-	virtual bool CanAssemble() override
-	{
-		return true;
-	}
+	virtual bool CanAssemble() override { return true; }
 
 	bool Assemble(const string& code, uint64_t addr, DataBuffer& result, string& errors) override
 	{
 		(void)addr;
 
 		int assembleResult;
-		char *instrBytes=NULL, *err=NULL;
-		int instrBytesLen=0, errLen=0;
+		char *instrBytes = NULL, *err = NULL;
+		int instrBytesLen = 0, errLen = 0;
 
 		BNLlvmServicesInit();
 
@@ -406,11 +361,10 @@ public:
 		if (m_endian == LittleEndian)
 			triple = "mipsel-pc-none-o32";
 
-		assembleResult = BNLlvmServicesAssemble(code.c_str(), LLVM_SVCS_DIALECT_UNSPEC,
-			triple, LLVM_SVCS_CM_DEFAULT, LLVM_SVCS_RM_STATIC,
-			&instrBytes, &instrBytesLen, &err, &errLen);
+		assembleResult = BNLlvmServicesAssemble(code.c_str(), LLVM_SVCS_DIALECT_UNSPEC, triple,
+		    LLVM_SVCS_CM_DEFAULT, LLVM_SVCS_RM_STATIC, &instrBytes, &instrBytesLen, &err, &errLen);
 
-		if(assembleResult || errLen)
+		if (assembleResult || errLen)
 		{
 			errors = err;
 			BNLlvmServicesAssembleFree(instrBytes, err);
@@ -427,25 +381,26 @@ public:
 	{
 		switch (instr.operation)
 		{
-			case MIPS_BEQL:
-			case MIPS_BNEL:
-			case MIPS_BGTZL:
-			case MIPS_BGEZL:
-			case MIPS_BLTZL:
-			case MIPS_BLEZL:
-			case MIPS_BC1TL:
-			case MIPS_BC1FL:
-			case MIPS_BC2FL:
-			case MIPS_BC2TL:
-			case MIPS_BGEZALL:
-			case MIPS_BLTZALL:
-				return true;
-			default:
-				return false;
+		case MIPS_BEQL:
+		case MIPS_BNEL:
+		case MIPS_BGTZL:
+		case MIPS_BGEZL:
+		case MIPS_BLTZL:
+		case MIPS_BLEZL:
+		case MIPS_BC1TL:
+		case MIPS_BC1FL:
+		case MIPS_BC2FL:
+		case MIPS_BC2TL:
+		case MIPS_BGEZALL:
+		case MIPS_BLTZALL:
+			return true;
+		default:
+			return false;
 		}
 	}
 
-	virtual bool GetInstructionLowLevelIL(const uint8_t* data, uint64_t addr, size_t& len, LowLevelILFunction& il) override
+	virtual bool GetInstructionLowLevelIL(
+	    const uint8_t* data, uint64_t addr, size_t& len, LowLevelILFunction& il) override
 	{
 		Instruction instr, secondInstr;
 		if (!Disassemble(data, addr, len, instr))
@@ -487,7 +442,8 @@ public:
 						if (trueLabel)
 							il.AddInstruction(il.Goto(*trueLabel));
 						else
-							il.AddInstruction(il.Jump(il.ConstPointer(GetAddressSize(), instrInfo.branchTarget[i])));
+							il.AddInstruction(
+							    il.Jump(il.ConstPointer(GetAddressSize(), instrInfo.branchTarget[i])));
 						break;
 					}
 				}
@@ -524,8 +480,9 @@ public:
 				il.SetCurrentAddress(this, addr);
 
 				if ((instr.operation == MIPS_JR) && (instr.operands[0].reg == REG_T9) &&
-						(secondInstr.operation == MIPS_ADDIU) && (secondInstr.operands[0].reg == REG_SP) &&
-						(secondInstr.operands[1].reg == REG_SP) && (secondInstr.operands[2].immediate < 0x80000000))
+				    (secondInstr.operation == MIPS_ADDIU) && (secondInstr.operands[0].reg == REG_SP) &&
+				    (secondInstr.operands[1].reg == REG_SP) &&
+				    (secondInstr.operands[2].immediate < 0x80000000))
 				{
 					il.AddInstruction(il.TailCall(il.Register(4, REG_T9)));
 				}
@@ -562,7 +519,9 @@ public:
 							// instruction we added at the beginning with an assignment to the temp
 							// register we rewrote in the LLIL_IF condition expression
 							il.SetCurrentAddress(this, addr + instr.size);
-							il.ReplaceExpr(nop, il.SetRegister(delayed.size, LLIL_TEMP(1), il.Register(delayed.size, delayed.GetDestRegister<LLIL_SET_REG>())));
+							il.ReplaceExpr(
+							    nop, il.SetRegister(delayed.size, LLIL_TEMP(1),
+							             il.Register(delayed.size, delayed.GetDestRegister<LLIL_SET_REG>())));
 							il.SetCurrentAddress(this, addr);
 						}
 					}
@@ -572,8 +531,8 @@ public:
 			len = instr.size + secondInstr.size;
 			return status;
 		}
-		else if (InstructionIsUnalignedMemAccess(instr) && len >= 8
-			&& Disassemble(data + 4, addr + 4, len - 4, secondInstr))
+		else if (InstructionIsUnalignedMemAccess(instr) && len >= 8 &&
+		         Disassemble(data + 4, addr + 4, len - 4, secondInstr))
 		{
 			Instruction* left = nullptr;
 			Instruction* right = nullptr;
@@ -635,7 +594,8 @@ public:
 		return GetLowLevelILForInstruction(this, addr, il, instr, GetAddressSize());
 	}
 
-	virtual bool GetInstructionInfo(const uint8_t* data, uint64_t addr, size_t maxLen, InstructionInfo& result) override
+	virtual bool GetInstructionInfo(
+	    const uint8_t* data, uint64_t addr, size_t maxLen, InstructionInfo& result) override
 	{
 		if (maxLen < 4)
 			return false;
@@ -648,7 +608,8 @@ public:
 		return true;
 	}
 
-	virtual bool GetInstructionText(const uint8_t* data, uint64_t addr, size_t& len, vector<InstructionTextToken>& result) override
+	virtual bool GetInstructionText(const uint8_t* data, uint64_t addr, size_t& len,
+	    vector<InstructionTextToken>& result) override
 	{
 		Instruction instr;
 		char operand[64];
@@ -666,7 +627,7 @@ public:
 		size_t operationLen = strlen(operation);
 		if (operationLen < 8)
 		{
-			padding[8-operationLen] = '\0';
+			padding[8 - operationLen] = '\0';
 		}
 		else
 			padding[1] = '\0';
@@ -798,7 +759,8 @@ public:
 		return IsConditionalBranch(instr);
 	}
 
-	virtual bool IsSkipAndReturnZeroPatchAvailable(const uint8_t* data, uint64_t addr, size_t len) override
+	virtual bool IsSkipAndReturnZeroPatchAvailable(
+	    const uint8_t* data, uint64_t addr, size_t len) override
 	{
 		Instruction instr;
 		if (!Disassemble(data, addr, len, instr))
@@ -807,7 +769,8 @@ public:
 		return (instr.operation == MIPS_BAL) || (instr.operation == MIPS_JAL);
 	}
 
-	// virtual bool IsSkipAndReturnValuePatchAvailable(const uint8_t* data, uint64_t addr, size_t len) override
+	// virtual bool IsSkipAndReturnValuePatchAvailable(const uint8_t* data, uint64_t addr, size_t len)
+	// override
 	// {
 	// 	Instruction instr;
 	// 	if (!Disassemble(data, addr, len, instr))
@@ -818,10 +781,10 @@ public:
 
 	virtual bool ConvertToNop(uint8_t* data, uint64_t, size_t len) override
 	{
-		uint32_t nop =  0;
+		uint32_t nop = 0;
 		if (len < sizeof(nop))
 			return false;
-		for (size_t i = 0; i < len/sizeof(nop); i++)
+		for (size_t i = 0; i < len / sizeof(nop); i++)
 			((uint32_t*)data)[i] = nop;
 		return true;
 	}
@@ -833,7 +796,7 @@ public:
 		if (!Disassemble(data, addr, len, instr))
 			return false;
 
-		uint32_t *value = (uint32_t*)data;
+		uint32_t* value = (uint32_t*)data;
 		uint32_t instValue = *value;
 
 		if (GetEndianness() == LittleEndian)
@@ -852,7 +815,7 @@ public:
 	{
 		(void)addr;
 		(void)len;
-		uint32_t *value = (uint32_t*)data;
+		uint32_t* value = (uint32_t*)data;
 
 		uint32_t instValue = *value;
 		if (GetEndianness() == LittleEndian)
@@ -861,38 +824,38 @@ public:
 		uint32_t op = instValue >> 25;
 		switch (op)
 		{
-			case 1: //REGIMM
-				op = (instValue >> 16) & 0xf;
-				switch (op)
-				{
-					case 0:	//BLTZ
-					case 1: //BGEZ
-					case 2: //BLTZL
-					case 3: //BGEZL
-					case 0x10: //BLTZAL
-					case 0x11: //BGEZAL
-					case 0x12: //BLTZALL
-					case 0x13: //BGEZALL
-						//Invert the bit
-						instValue ^= 0x00000100;
-						break;
-					default:
-						return false;
-				}
-				break;
-			case 4: //BEQ
-			case 5: //BNE
-			case 6: //BLEZ
-			case 7: //BGTZ
-			case 0x14: //BEQL
-			case 0x15: //BNEL
-			case 0x16: //BLEZL
-			case 0x17: //BGTZL
-				//Invert the bit
-				instValue ^= 0x00000004;
+		case 1:  // REGIMM
+			op = (instValue >> 16) & 0xf;
+			switch (op)
+			{
+			case 0:     // BLTZ
+			case 1:     // BGEZ
+			case 2:     // BLTZL
+			case 3:     // BGEZL
+			case 0x10:  // BLTZAL
+			case 0x11:  // BGEZAL
+			case 0x12:  // BLTZALL
+			case 0x13:  // BGEZALL
+				// Invert the bit
+				instValue ^= 0x00000100;
 				break;
 			default:
 				return false;
+			}
+			break;
+		case 4:     // BEQ
+		case 5:     // BNE
+		case 6:     // BLEZ
+		case 7:     // BGTZ
+		case 0x14:  // BEQL
+		case 0x15:  // BNEL
+		case 0x16:  // BLEZL
+		case 0x17:  // BGTZL
+			// Invert the bit
+			instValue ^= 0x00000004;
+			break;
+		default:
+			return false;
 		}
 		if (GetEndianness() == LittleEndian)
 			instValue = bswap32(instValue);
@@ -903,21 +866,21 @@ public:
 	/*
 	virtual bool SkipAndReturnValue(uint8_t* data, uint64_t addr, size_t len, uint64_t value) override
 	{
-		(void)addr;
-		//Return value is put in R0. The largest value that we can put into a single integer is 12 bits
-		if (value > 0xfff || len > 4)
-			return false;
+	  (void)addr;
+	  //Return value is put in R0. The largest value that we can put into a single integer is 12 bits
+	  if (value > 0xfff || len > 4)
+	    return false;
 
-		uint32_t movValueR0 = 0xe3a00000;
-		uint32_t *inst = (uint32_t*)data;
-		*inst = movValueR0 | (value & 0xfff);
-		return true;
+	  uint32_t movValueR0 = 0xe3a00000;
+	  uint32_t *inst = (uint32_t*)data;
+	  *inst = movValueR0 | (value & 0xfff);
+	  return true;
 	}
 	*/
 	virtual string GetRegisterName(uint32_t reg) override
 	{
 		const char* regsz = nullptr;
-		//Integers compared here are according to the list returned by GetAllRegisters
+		// Integers compared here are according to the list returned by GetAllRegisters
 		if (reg < END_REG)
 			regsz = get_register((Reg)reg);
 		if (regsz == nullptr)
@@ -937,48 +900,41 @@ public:
 
 	virtual vector<uint32_t> GetFullWidthRegisters() override
 	{
-		return vector<uint32_t>{
-			REG_ZERO,  REG_AT,  REG_V0,  REG_V1,  REG_A0,  REG_A1,  REG_A2,  REG_A3,
-			REG_T0,    REG_T1,  REG_T2,  REG_T3,  REG_T4,  REG_T5,  REG_T6,  REG_T7,
-			REG_S0,    REG_S1,  REG_S2,  REG_S3,  REG_S4,  REG_S5,  REG_S6,  REG_S7,
-			REG_T8,    REG_T9,  REG_K0,  REG_K1,  REG_GP,  REG_SP,  REG_FP,  REG_RA,
-			CPREG_0,       CPREG_1,       CPREG_2,       CPREG_3,       CPREG_4,       CPREG_5,       CPREG_6,       CPREG_7,
-			CPREG_8,       CPREG_9,       CPREG_10,      CPREG_11,      CPREG_12,      CPREG_13,      CPREG_14,      CPREG_15,
-			CPREG_16,      CPREG_17,      CPREG_18,      CPREG_19,      CPREG_20,      CPREG_21,      CPREG_22,      CPREG_23,
-			CPREG_24,      CPREG_25,      CPREG_26,      CPREG_27,      CPREG_28,      CPREG_29,      CPREG_30,      CPREG_31,
-			FPREG_F0,      FPREG_F1,      FPREG_F2,      FPREG_F3,      FPREG_F4,      FPREG_F5,      FPREG_F6,      FPREG_F7,
-			FPREG_F8,      FPREG_F9,      FPREG_F10,     FPREG_F11,     FPREG_F12,     FPREG_F13,     FPREG_F14,     FPREG_F15,
-			FPREG_F16,     FPREG_F17,     FPREG_F18,     FPREG_F19,     FPREG_F20,     FPREG_F21,     FPREG_F22,     FPREG_F23,
-			FPREG_F24,     FPREG_F25,     FPREG_F26,     FPREG_F27,     FPREG_F28,     FPREG_F29,     FPREG_F30,     FPREG_F31,
-			FPCCREG_FCC0,  FPCCREG_FCC1,  FPCCREG_FCC2,  FPCCREG_FCC3,  FPCCREG_FCC4,  FPCCREG_FCC5,  FPCCREG_FCC6,  FPCCREG_FCC7,
-			REG_LO, REG_HI, REG_COP0, REG_COP1, REG_COP2, REG_COP3
-		};
+		return vector<uint32_t> {REG_ZERO, REG_AT, REG_V0, REG_V1, REG_A0, REG_A1, REG_A2, REG_A3,
+		    REG_T0, REG_T1, REG_T2, REG_T3, REG_T4, REG_T5, REG_T6, REG_T7, REG_S0, REG_S1, REG_S2,
+		    REG_S3, REG_S4, REG_S5, REG_S6, REG_S7, REG_T8, REG_T9, REG_K0, REG_K1, REG_GP, REG_SP,
+		    REG_FP, REG_RA, CPREG_0, CPREG_1, CPREG_2, CPREG_3, CPREG_4, CPREG_5, CPREG_6, CPREG_7,
+		    CPREG_8, CPREG_9, CPREG_10, CPREG_11, CPREG_12, CPREG_13, CPREG_14, CPREG_15, CPREG_16,
+		    CPREG_17, CPREG_18, CPREG_19, CPREG_20, CPREG_21, CPREG_22, CPREG_23, CPREG_24, CPREG_25,
+		    CPREG_26, CPREG_27, CPREG_28, CPREG_29, CPREG_30, CPREG_31, FPREG_F0, FPREG_F1, FPREG_F2,
+		    FPREG_F3, FPREG_F4, FPREG_F5, FPREG_F6, FPREG_F7, FPREG_F8, FPREG_F9, FPREG_F10, FPREG_F11,
+		    FPREG_F12, FPREG_F13, FPREG_F14, FPREG_F15, FPREG_F16, FPREG_F17, FPREG_F18, FPREG_F19,
+		    FPREG_F20, FPREG_F21, FPREG_F22, FPREG_F23, FPREG_F24, FPREG_F25, FPREG_F26, FPREG_F27,
+		    FPREG_F28, FPREG_F29, FPREG_F30, FPREG_F31, FPCCREG_FCC0, FPCCREG_FCC1, FPCCREG_FCC2,
+		    FPCCREG_FCC3, FPCCREG_FCC4, FPCCREG_FCC5, FPCCREG_FCC6, FPCCREG_FCC7, REG_LO, REG_HI,
+		    REG_COP0, REG_COP1, REG_COP2, REG_COP3};
 	}
 
 	virtual vector<uint32_t> GetAllRegisters() override
 	{
-		return vector<uint32_t>{
-			REG_ZERO,      REG_AT,        REG_V0,        REG_V1,        REG_A0,        REG_A1,        REG_A2,        REG_A3,
-			REG_T0,        REG_T1,        REG_T2,        REG_T3,        REG_T4,        REG_T5,        REG_T6,        REG_T7,
-			REG_S0,        REG_S1,        REG_S2,        REG_S3,        REG_S4,        REG_S5,        REG_S6,        REG_S7,
-			REG_T8,        REG_T9,        REG_K0,        REG_K1,        REG_GP,        REG_SP,        REG_FP,        REG_RA,
-			CPREG_0,       CPREG_1,       CPREG_2,       CPREG_3,       CPREG_4,       CPREG_5,       CPREG_6,       CPREG_7,
-			CPREG_8,       CPREG_9,       CPREG_10,      CPREG_11,      CPREG_12,      CPREG_13,      CPREG_14,      CPREG_15,
-			CPREG_16,      CPREG_17,      CPREG_18,      CPREG_19,      CPREG_20,      CPREG_21,      CPREG_22,      CPREG_23,
-			CPREG_24,      CPREG_25,      CPREG_26,      CPREG_27,      CPREG_28,      CPREG_29,      CPREG_30,      CPREG_31,
-			FPREG_F0,      FPREG_F1,      FPREG_F2,      FPREG_F3,      FPREG_F4,      FPREG_F5,      FPREG_F6,      FPREG_F7,
-			FPREG_F8,      FPREG_F9,      FPREG_F10,     FPREG_F11,     FPREG_F12,     FPREG_F13,     FPREG_F14,     FPREG_F15,
-			FPREG_F16,     FPREG_F17,     FPREG_F18,     FPREG_F19,     FPREG_F20,     FPREG_F21,     FPREG_F22,     FPREG_F23,
-			FPREG_F24,     FPREG_F25,     FPREG_F26,     FPREG_F27,     FPREG_F28,     FPREG_F29,     FPREG_F30,     FPREG_F31,
-			REG_LO, REG_HI, REG_COP0, REG_COP1, REG_COP2, REG_COP3
-		};
+		return vector<uint32_t> {REG_ZERO, REG_AT, REG_V0, REG_V1, REG_A0, REG_A1, REG_A2, REG_A3,
+		    REG_T0, REG_T1, REG_T2, REG_T3, REG_T4, REG_T5, REG_T6, REG_T7, REG_S0, REG_S1, REG_S2,
+		    REG_S3, REG_S4, REG_S5, REG_S6, REG_S7, REG_T8, REG_T9, REG_K0, REG_K1, REG_GP, REG_SP,
+		    REG_FP, REG_RA, CPREG_0, CPREG_1, CPREG_2, CPREG_3, CPREG_4, CPREG_5, CPREG_6, CPREG_7,
+		    CPREG_8, CPREG_9, CPREG_10, CPREG_11, CPREG_12, CPREG_13, CPREG_14, CPREG_15, CPREG_16,
+		    CPREG_17, CPREG_18, CPREG_19, CPREG_20, CPREG_21, CPREG_22, CPREG_23, CPREG_24, CPREG_25,
+		    CPREG_26, CPREG_27, CPREG_28, CPREG_29, CPREG_30, CPREG_31, FPREG_F0, FPREG_F1, FPREG_F2,
+		    FPREG_F3, FPREG_F4, FPREG_F5, FPREG_F6, FPREG_F7, FPREG_F8, FPREG_F9, FPREG_F10, FPREG_F11,
+		    FPREG_F12, FPREG_F13, FPREG_F14, FPREG_F15, FPREG_F16, FPREG_F17, FPREG_F18, FPREG_F19,
+		    FPREG_F20, FPREG_F21, FPREG_F22, FPREG_F23, FPREG_F24, FPREG_F25, FPREG_F26, FPREG_F27,
+		    FPREG_F28, FPREG_F29, FPREG_F30, FPREG_F31, REG_LO, REG_HI, REG_COP0, REG_COP1, REG_COP2,
+		    REG_COP3};
 	}
 
 	virtual vector<uint32_t> GetAllFlags() override
 	{
-		return vector<uint32_t>{
-			FPCCREG_FCC0,  FPCCREG_FCC1,  FPCCREG_FCC2,  FPCCREG_FCC3,  FPCCREG_FCC4,  FPCCREG_FCC5,  FPCCREG_FCC6,  FPCCREG_FCC7
-		};
+		return vector<uint32_t> {FPCCREG_FCC0, FPCCREG_FCC1, FPCCREG_FCC2, FPCCREG_FCC3, FPCCREG_FCC4,
+		    FPCCREG_FCC5, FPCCREG_FCC6, FPCCREG_FCC7};
 	}
 
 	virtual BNRegisterInfo GetRegisterInfo(uint32_t reg) override
@@ -987,64 +943,44 @@ public:
 		return result;
 	}
 
-	virtual uint32_t GetStackPointerRegister() override
-	{
-		return REG_SP;
-	}
+	virtual uint32_t GetStackPointerRegister() override { return REG_SP; }
 
-	virtual uint32_t GetLinkRegister() override
-	{
-		return REG_RA;
-	}
+	virtual uint32_t GetLinkRegister() override { return REG_RA; }
 };
 
-class MipsO32CallingConvention: public CallingConvention
+class MipsO32CallingConvention : public CallingConvention
 {
-public:
-	MipsO32CallingConvention(Architecture* arch): CallingConvention(arch, "o32")
-	{
-	}
+ public:
+	MipsO32CallingConvention(Architecture* arch) : CallingConvention(arch, "o32") {}
 
-	virtual uint32_t GetIntegerReturnValueRegister() override
-	{
-		return REG_V0;
-	}
+	virtual uint32_t GetIntegerReturnValueRegister() override { return REG_V0; }
 
-	virtual uint32_t GetHighIntegerReturnValueRegister() override
-	{
-		return REG_V1;
-	}
+	virtual uint32_t GetHighIntegerReturnValueRegister() override { return REG_V1; }
 
 	virtual vector<uint32_t> GetIntegerArgumentRegisters() override
 	{
-		return vector<uint32_t>{ REG_A0, REG_A1, REG_A2, REG_A3 };
+		return vector<uint32_t> {REG_A0, REG_A1, REG_A2, REG_A3};
 	}
 
-	virtual bool IsStackReservedForArgumentRegisters() override
-	{
-		return true;
-	}
+	virtual bool IsStackReservedForArgumentRegisters() override { return true; }
 
 	virtual vector<uint32_t> GetCallerSavedRegisters() override
 	{
-		return vector<uint32_t> { REG_AT, REG_V0, REG_V1, REG_A0, REG_A1, REG_A2, REG_A3, REG_T0, REG_T1,
-			REG_T2, REG_T3, REG_T4, REG_T5, REG_T6, REG_T7, REG_T8, REG_T9 };
+		return vector<uint32_t> {REG_AT, REG_V0, REG_V1, REG_A0, REG_A1, REG_A2, REG_A3, REG_T0, REG_T1,
+		    REG_T2, REG_T3, REG_T4, REG_T5, REG_T6, REG_T7, REG_T8, REG_T9};
 	}
 
 	virtual vector<uint32_t> GetCalleeSavedRegisters() override
 	{
-		return vector<uint32_t> { REG_S0, REG_S1, REG_S2, REG_S3, REG_S4, REG_S5, REG_S6, REG_S7,
-			REG_GP, REG_FP };
+		return vector<uint32_t> {
+		    REG_S0, REG_S1, REG_S2, REG_S3, REG_S4, REG_S5, REG_S6, REG_S7, REG_GP, REG_FP};
 	}
 
-	virtual uint32_t GetGlobalPointerRegister() override
-	{
-		return REG_GP;
-	}
+	virtual uint32_t GetGlobalPointerRegister() override { return REG_GP; }
 
 	virtual vector<uint32_t> GetImplicitlyDefinedRegisters() override
 	{
-		return vector<uint32_t> { REG_T9 };
+		return vector<uint32_t> {REG_T9};
 	}
 
 	virtual RegisterValue GetIncomingRegisterValue(uint32_t reg, Function* func) override
@@ -1059,48 +995,38 @@ public:
 	}
 };
 
-class MipsLinuxSyscallCallingConvention: public CallingConvention
+class MipsLinuxSyscallCallingConvention : public CallingConvention
 {
-public:
-	MipsLinuxSyscallCallingConvention(Architecture* arch): CallingConvention(arch, "linux-syscall")
-	{
-	}
+ public:
+	MipsLinuxSyscallCallingConvention(Architecture* arch) : CallingConvention(arch, "linux-syscall")
+	{}
 
-	virtual uint32_t GetIntegerReturnValueRegister() override
-	{
-		return REG_V0;
-	}
+	virtual uint32_t GetIntegerReturnValueRegister() override { return REG_V0; }
 
-	virtual uint32_t GetHighIntegerReturnValueRegister() override
-	{
-		return REG_V1;
-	}
+	virtual uint32_t GetHighIntegerReturnValueRegister() override { return REG_V1; }
 
 	virtual vector<uint32_t> GetIntegerArgumentRegisters() override
 	{
-		return vector<uint32_t>{ REG_V0, REG_A0, REG_A1, REG_A2, REG_A3 };
+		return vector<uint32_t> {REG_V0, REG_A0, REG_A1, REG_A2, REG_A3};
 	}
 
 	virtual vector<uint32_t> GetCallerSavedRegisters() override
 	{
-		return vector<uint32_t> { REG_AT, REG_V0, REG_V1 };
+		return vector<uint32_t> {REG_AT, REG_V0, REG_V1};
 	}
 
 	virtual vector<uint32_t> GetCalleeSavedRegisters() override
 	{
-		return vector<uint32_t> { REG_S0, REG_S1, REG_S2, REG_S3, REG_S4, REG_S5, REG_S6, REG_S7,
-			REG_GP, REG_FP };
+		return vector<uint32_t> {
+		    REG_S0, REG_S1, REG_S2, REG_S3, REG_S4, REG_S5, REG_S6, REG_S7, REG_GP, REG_FP};
 	}
 
-	virtual bool IsEligibleForHeuristics() override
-	{
-		return false;
-	}
+	virtual bool IsEligibleForHeuristics() override { return false; }
 };
 
-class MipsImportedFunctionRecognizer: public FunctionRecognizer
+class MipsImportedFunctionRecognizer : public FunctionRecognizer
 {
-private:
+ private:
 	bool RecognizeELFPLTEntries(BinaryView* data, Function* func, LowLevelILFunction* il)
 	{
 		// Look for the folloiwng code pattern:
@@ -1154,7 +1080,7 @@ private:
 				ldAddrRightOperandValue = -ldAddrRightOperandValue;
 			entry = pltHi + ldAddrRightOperandValue;
 		}
-		else if (ldAddrOperand.operation != LLIL_REG) //If theres no constant
+		else if (ldAddrOperand.operation != LLIL_REG)  // If theres no constant
 			return false;
 
 		Ref<Symbol> sym = data->GetSymbolByAddress(entry);
@@ -1181,7 +1107,8 @@ private:
 			if (addRightOperand.GetConstant() != (ldAddrRightOperandValue & 0xffffffff))
 				return false;
 		}
-		else if ((addOperand.operation != LLIL_REG) || (addOperand.GetSourceRegister<LLIL_REG>() != pltReg)) //Simple assignment
+		else if ((addOperand.operation != LLIL_REG) ||
+		         (addOperand.GetSourceRegister<LLIL_REG>() != pltReg))  // Simple assignment
 			return false;
 
 		LowLevelILInstruction jump = il->GetInstruction(3);
@@ -1196,14 +1123,16 @@ private:
 				return false;
 			if (luiOperand.size != func->GetArchitecture()->GetAddressSize())
 				return false;
-			if (((uint64_t) luiOperand.GetConstant()) != pltHi)
+			if (((uint64_t)luiOperand.GetConstant()) != pltHi)
 				return false;
 			jump = il->GetInstruction(4);
 		}
 
 		if ((jump.operation != LLIL_JUMP) && (jump.operation != LLIL_TAILCALL))
 			return false;
-		LowLevelILInstruction jumpOperand = (jump.operation == LLIL_JUMP) ? jump.GetDestExpr<LLIL_JUMP>() : jump.GetDestExpr<LLIL_TAILCALL>();
+		LowLevelILInstruction jumpOperand = (jump.operation == LLIL_JUMP) ?
+		                                        jump.GetDestExpr<LLIL_JUMP>() :
+		                                        jump.GetDestExpr<LLIL_TAILCALL>();
 		if (jumpOperand.operation != LLIL_REG)
 			return false;
 		if (jumpOperand.GetSourceRegister<LLIL_REG>() != targetReg)
@@ -1214,8 +1143,10 @@ private:
 		func->ApplyImportedTypes(funcSym);
 		return true;
 	}
-public:
-	virtual bool RecognizeLowLevelIL(BinaryView* data, Function* func, LowLevelILFunction* il) override
+
+ public:
+	virtual bool RecognizeLowLevelIL(
+	    BinaryView* data, Function* func, LowLevelILFunction* il) override
 	{
 		if (RecognizeELFPLTEntries(data, func, il))
 			return true;
@@ -1224,10 +1155,9 @@ public:
 	}
 };
 
-class MipsElfRelocationHandler: public RelocationHandler
+class MipsElfRelocationHandler : public RelocationHandler
 {
-public:
-
+ public:
 	bool GetGpAddr(Ref<BinaryView> view, int32_t& gpAddr)
 	{
 		auto sym = view->GetSymbolByRawName("_gp");
@@ -1240,7 +1170,8 @@ public:
 	}
 
 
-	virtual bool ApplyRelocation(Ref<BinaryView> view, Ref<Architecture> arch, Ref<Relocation> reloc, uint8_t* dest, size_t len) override
+	virtual bool ApplyRelocation(Ref<BinaryView> view, Ref<Architecture> arch, Ref<Relocation> reloc,
+	    uint8_t* dest, size_t len) override
 	{
 		if (len < 4)
 			return false;
@@ -1248,7 +1179,9 @@ public:
 		auto info = reloc->GetInfo();
 		auto addr = reloc->GetAddress();
 		uint32_t* dest32 = (uint32_t*)dest;
-		auto swap = [&arch](uint32_t x) { return (arch->GetEndianness() == LittleEndian)? x : bswap32(x); };
+		auto swap = [&arch](uint32_t x) {
+			return (arch->GetEndianness() == LittleEndian) ? x : bswap32(x);
+		};
 		uint64_t target = reloc->GetTarget();
 		uint32_t inst = swap(dest32[0]);
 		switch (info.nativeType)
@@ -1274,7 +1207,8 @@ public:
 				uint32_t inst2 = *(uint32_t*)(cur->relocationDataCache);
 				Instruction instruction;
 				memset(&instruction, 0, sizeof(instruction));
-				if (mips_decompose(&inst2, sizeof(uint32_t), &instruction, MIPS_32, cur->address, arch->GetEndianness()))
+				if (mips_decompose(&inst2, sizeof(uint32_t), &instruction, MIPS_32, cur->address,
+				        arch->GetEndianness()))
 					break;
 
 				int32_t immediate = swap(inst2) & 0xffff;
@@ -1290,10 +1224,8 @@ public:
 				uint32_t ahl = ((inst & 0xffff) << 16) + immediate;
 
 				// ((AHL + S) – (short)(AHL + S)) >> 16
-				dest32[0] = swap((uint32_t)(
-					(inst & ~0xffff) |
-					(((ahl + target) - (short)(ahl + target)) >> 16)
-				));
+				dest32[0] =
+				    swap((uint32_t)((inst & ~0xffff) | (((ahl + target) - (short)(ahl + target)) >> 16)));
 			}
 			else
 			{
@@ -1333,9 +1265,11 @@ public:
 		return true;
 	}
 
-	virtual bool GetRelocationInfo(Ref<BinaryView> view, Ref<Architecture> arch, vector<BNRelocationInfo>& result) override
+	virtual bool GetRelocationInfo(
+	    Ref<BinaryView> view, Ref<Architecture> arch, vector<BNRelocationInfo>& result) override
 	{
-		(void)view; (void)arch;
+		(void)view;
+		(void)arch;
 		for (size_t i = 0; i < result.size(); i++)
 		{
 			result[i].type = StandardRelocationType;
@@ -1345,7 +1279,8 @@ public:
 			switch (result[i].nativeType)
 			{
 			case R_MIPS_NONE:
-			case R_MIPS_JALR: // Note: optimization hint that can safely be ignored TODO: link-time mutable opcode bytes
+			case R_MIPS_JALR:  // Note: optimization hint that can safely be ignored TODO: link-time
+			                   // mutable opcode bytes
 				result[i].type = IgnoredRelocation;
 				break;
 			case R_MIPS_COPY:
@@ -1389,7 +1324,8 @@ public:
 				if (!GetGpAddr(view, gpAddr))
 				{
 					result[i].type = UnhandledRelocation;
-					LogWarn("Unsupported relocation type: %s : Unable to locate _gp symbol.", GetRelocationString((ElfMipsRelocationType)result[i].nativeType));
+					LogWarn("Unsupported relocation type: %s : Unable to locate _gp symbol.",
+					    GetRelocationString((ElfMipsRelocationType)result[i].nativeType));
 				}
 				break;
 			}
@@ -1397,14 +1333,15 @@ public:
 				break;
 			default:
 				result[i].type = UnhandledRelocation;
-				LogWarn("Unsupported relocation type: %s", GetRelocationString((ElfMipsRelocationType)result[i].nativeType));
+				LogWarn("Unsupported relocation type: %s",
+				    GetRelocationString((ElfMipsRelocationType)result[i].nativeType));
 			}
 		}
 		return true;
 	}
 
 	virtual size_t GetOperandForExternalRelocation(const uint8_t* data, uint64_t addr, size_t length,
-		Ref<LowLevelILFunction> il, Ref<Relocation> relocation) override
+	    Ref<LowLevelILFunction> il, Ref<Relocation> relocation) override
 	{
 		(void)data;
 		(void)addr;
@@ -1415,15 +1352,15 @@ public:
 
 		switch (info.nativeType)
 		{
-			case R_MIPS_HI16:
-			case R_MIPS_LO16:
-			case R_MIPS_CALL16:
-			case R_MIPS_GOT16:
-				result = BN_NOCOERCE_EXTERN_PTR;
-				break;
-			default:
-				result = BN_AUTOCOERCE_EXTERN_PTR;
-				break;
+		case R_MIPS_HI16:
+		case R_MIPS_LO16:
+		case R_MIPS_CALL16:
+		case R_MIPS_GOT16:
+			result = BN_NOCOERCE_EXTERN_PTR;
+			break;
+		default:
+			result = BN_AUTOCOERCE_EXTERN_PTR;
+			break;
 		}
 
 		return result;
@@ -1449,8 +1386,10 @@ extern "C"
 		mipsel->SetDefaultCallingConvention(o32LE);
 		mipseb->SetDefaultCallingConvention(o32BE);
 
-		MipsLinuxSyscallCallingConvention* linuxSyscallLE = new MipsLinuxSyscallCallingConvention(mipsel);
-		MipsLinuxSyscallCallingConvention* linuxSyscallBE = new MipsLinuxSyscallCallingConvention(mipseb);
+		MipsLinuxSyscallCallingConvention* linuxSyscallLE =
+		    new MipsLinuxSyscallCallingConvention(mipsel);
+		MipsLinuxSyscallCallingConvention* linuxSyscallBE =
+		    new MipsLinuxSyscallCallingConvention(mipseb);
 		mipsel->RegisterCallingConvention(linuxSyscallLE);
 		mipseb->RegisterCallingConvention(linuxSyscallBE);
 
