@@ -1387,14 +1387,14 @@ uint32_t mips_decompose_instruction(
 		case MIPS_BLTZALL:
 		case MIPS_BLTZL:
 		case MIPS_BEQZ:
-			INS_2(REG, ins.i.rs, LABEL, (4 + ins.i.immediate<<2) & registerMask)
+			INS_2(REG, ins.i.rs, LABEL, (4 + address + (ins.i.immediate<<2)) & registerMask)
 			break;
 		case MIPS_BGTZ:
 		case MIPS_BGTZL:
 		case MIPS_BLEZ:
 		case MIPS_BLEZL:
 		case MIPS_BLTZ:
-			INS_2(REG, ins.i.rs, LABEL, (4 + address + (ins.i.immediate<<2) & registerMask))
+			INS_2(REG, ins.i.rs, LABEL, (4 + address + (ins.i.immediate<<2)) & registerMask)
 			if (ins.i.rt != 0)
 				return 1;
 			break;
@@ -1732,7 +1732,7 @@ uint32_t mips_decompose_instruction(
 		case MIPS_BEQL:
 		case MIPS_BNE:
 		case MIPS_BNEL:
-			INS_3(REG, ins.i.rs, REG, ins.i.rt, LABEL, (4 + address + (ins.i.immediate<<2) & registerMask))
+			INS_3(REG, ins.i.rs, REG, ins.i.rt, LABEL, (4 + address + (ins.i.immediate<<2)) & registerMask)
 			break;
 		case MIPS_ROTR:
 			INS_3(REG, ins.r.rd, REG, ins.r.rt, IMM, ins.r.sa)
