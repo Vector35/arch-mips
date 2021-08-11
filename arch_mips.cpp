@@ -161,6 +161,7 @@ static const char* GetRelocationString(ElfMipsRelocationType rel)
 		return relocTable.at(rel);
 	return "Unknown MIPS relocation";
 }
+
 class MipsArchitecture: public Architecture
 {
 protected:
@@ -170,14 +171,14 @@ protected:
 	virtual bool Disassemble(const uint8_t* data, uint64_t addr, size_t maxLen, Instruction& result)
 	{
 		memset(&result, 0, sizeof(result));
-		if (mips_decompose((uint32_t*)data, maxLen,  &result, MIPS_32, addr, m_endian) != 0)
+		if (mips_decompose((uint32_t*)data, maxLen,  &result, m_bits == 64 ? MIPS_64 : MIPS_32, addr, m_endian) != 0)
 			return false;
 		return true;
 	}
 
 	virtual size_t GetAddressSize() const override
 	{
-		return 4;
+		return m_bits / 8;
 	}
 
 	bool InstructionHasBranchDelay(const Instruction& instr)
@@ -362,7 +363,7 @@ protected:
 	}
 
 public:
-	MipsArchitecture(const std::string& name, BNEndianness endian): Architecture(name), m_bits(32), m_endian(endian)
+	MipsArchitecture(const std::string& name, BNEndianness endian, size_t bits): Architecture(name), m_bits(bits), m_endian(endian)
 	{
 	}
 
@@ -475,7 +476,7 @@ public:
 				InstructionInfo instrInfo;
 				LowLevelILLabel trueCode, falseCode;
 				SetInstructionInfoForInstruction(addr, instr, instrInfo);
-				il.AddInstruction(il.If(GetConditionForInstruction(il, instr), trueCode, falseCode));
+				il.AddInstruction(il.If(GetConditionForInstruction(il, instr, GetAddressSize()), trueCode, falseCode));
 				il.MarkLabel(trueCode);
 				il.SetCurrentAddress(this, addr + instr.size);
 				GetLowLevelILForInstruction(this, addr + instr.size, il, secondInstr, GetAddressSize());
@@ -984,6 +985,10 @@ public:
 	virtual BNRegisterInfo GetRegisterInfo(uint32_t reg) override
 	{
 		BNRegisterInfo result = {reg, 0, 4, NoExtend};
+		if (m_bits == 64) {
+			result.size = 8;
+			result.extend = SignExtendToFullWidth;
+		}
 		return result;
 	}
 
@@ -1035,6 +1040,73 @@ public:
 	{
 		return vector<uint32_t> { REG_S0, REG_S1, REG_S2, REG_S3, REG_S4, REG_S5, REG_S6, REG_S7,
 			REG_GP, REG_FP };
+	}
+
+	virtual uint32_t GetGlobalPointerRegister() override
+	{
+		return REG_GP;
+	}
+
+	virtual vector<uint32_t> GetImplicitlyDefinedRegisters() override
+	{
+		return vector<uint32_t> { REG_T9 };
+	}
+
+	virtual RegisterValue GetIncomingRegisterValue(uint32_t reg, Function* func) override
+	{
+		RegisterValue result;
+		if (reg == REG_T9)
+		{
+			result.state = ConstantPointerValue;
+			result.value = func->GetStart();
+		}
+		return result;
+	}
+};
+
+class MipsN64CallingConvention: public CallingConvention
+{
+public:
+	MipsN64CallingConvention(Architecture* arch): CallingConvention(arch, "n64")
+	{
+	}
+
+	virtual uint32_t GetIntegerReturnValueRegister() override
+	{
+		return REG_V0;
+	}
+
+	virtual uint32_t GetHighIntegerReturnValueRegister() override
+	{
+		return REG_V1;
+	}
+
+	virtual vector<uint32_t> GetIntegerArgumentRegisters() override
+	{
+		return vector<uint32_t>{
+			REG_A0, REG_A1, REG_A2, REG_A3,
+			REG_A4, REG_A5, REG_A6, REG_A7,
+		};
+	}
+
+	virtual bool IsStackReservedForArgumentRegisters() override
+	{
+		return false;
+	}
+
+	virtual vector<uint32_t> GetCallerSavedRegisters() override
+	{
+		return vector<uint32_t> { REG_AT, REG_V0, REG_V1, REG_A0, REG_A1, REG_A2, REG_A3, REG_A4, REG_A5,
+			REG_A6, REG_A7, REG_T4, REG_T5, REG_T6, REG_T7, REG_T8, REG_T9, REG_RA,
+			FPREG_F0, FPREG_F1, FPREG_F2, FPREG_F3, FPREG_F4, FPREG_F5, FPREG_F6, FPREG_F7, FPREG_F8,
+			FPREG_F9, FPREG_F10, FPREG_F11, FPREG_F12, FPREG_F13, FPREG_F14, FPREG_F15, FPREG_F16, FPREG_F17,
+			FPREG_F18, FPREG_F19, FPREG_F20, FPREG_F21, FPREG_F22, FPREG_F23, };
+	}
+
+	virtual vector<uint32_t> GetCalleeSavedRegisters() override
+	{
+		return vector<uint32_t> { REG_S0, REG_S1, REG_S2, REG_S3, REG_S4, REG_S5, REG_S6, REG_S7,
+			REG_GP, REG_FP, FPREG_F24, FPREG_F25, FPREG_F26, FPREG_F27, FPREG_F28, FPREG_F29, FPREG_F30, FPREG_F31 };
 	}
 
 	virtual uint32_t GetGlobalPointerRegister() override
@@ -1436,18 +1508,23 @@ extern "C"
 
 	BINARYNINJAPLUGIN bool CorePluginInit()
 	{
-		Architecture* mipsel = new MipsArchitecture("mipsel32", LittleEndian);
-		Architecture* mipseb = new MipsArchitecture("mips32", BigEndian);
+		Architecture* mipsel = new MipsArchitecture("mipsel32", LittleEndian, 32);
+		Architecture* mipseb = new MipsArchitecture("mips32", BigEndian, 32);
+		Architecture* mips64eb = new MipsArchitecture("mips64", BigEndian, 64);
 
 		Architecture::Register(mipsel);
 		Architecture::Register(mipseb);
+		Architecture::Register(mips64eb);
 
 		MipsO32CallingConvention* o32LE = new MipsO32CallingConvention(mipsel);
 		MipsO32CallingConvention* o32BE = new MipsO32CallingConvention(mipseb);
+		MipsN64CallingConvention* n64BE = new MipsN64CallingConvention(mips64eb);
 		mipsel->RegisterCallingConvention(o32LE);
 		mipseb->RegisterCallingConvention(o32BE);
 		mipsel->SetDefaultCallingConvention(o32LE);
 		mipseb->SetDefaultCallingConvention(o32BE);
+		mips64eb->RegisterCallingConvention(n64BE);
+		mips64eb->SetDefaultCallingConvention(n64BE);
 
 		MipsLinuxSyscallCallingConvention* linuxSyscallLE = new MipsLinuxSyscallCallingConvention(mipsel);
 		MipsLinuxSyscallCallingConvention* linuxSyscallBE = new MipsLinuxSyscallCallingConvention(mipseb);
@@ -1469,6 +1546,7 @@ extern "C"
 		// these architectures for disassembling an executable file
 		BinaryViewType::RegisterArchitecture("ELF", 0x08, LittleEndian, mipsel);
 		BinaryViewType::RegisterArchitecture("ELF", 0x08, BigEndian, mipseb);
+		BinaryViewType::RegisterArchitecture("ELF", 0x08, BigEndian, mips64eb);
 		BinaryViewType::RegisterArchitecture("PE", 0x166, LittleEndian, mipsel);
 		return true;
 	}

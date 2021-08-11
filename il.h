@@ -10,4 +10,4 @@ bool GetLowLevelILForInstruction(
 		mips::Instruction& instr,
 		size_t addrSize);
 
-BinaryNinja::ExprId GetConditionForInstruction(BinaryNinja::LowLevelILFunction& il, mips::Instruction& instr);
+BinaryNinja::ExprId GetConditionForInstruction(BinaryNinja::LowLevelILFunction& il, mips::Instruction& instr, size_t registerSize);

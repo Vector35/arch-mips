@@ -1,5 +1,6 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include <stdlib.h>
+#include <stdio.h>
 #include "mips.h"
 
 #ifdef __cplusplus
@@ -54,7 +55,7 @@ using namespace mips;
 
 
 //Fields are: [Version][opcode_high][opcode_low]
-static Operation mips_base_table[5][8][8] = {
+static Operation mips_base_table[6][8][8] = {
 	{	//MIPS version 1
 		{MIPS_INVALID, MIPS_INVALID, MIPS_J, MIPS_JAL, MIPS_BEQ, MIPS_BNE, MIPS_BLEZ, MIPS_BGTZ},
 		{MIPS_ADDI, MIPS_ADDIU, MIPS_SLTI, MIPS_SLTIU, MIPS_ANDI, MIPS_ORI, MIPS_XORI, MIPS_LUI},
@@ -100,11 +101,20 @@ static Operation mips_base_table[5][8][8] = {
 		{MIPS_SB,       MIPS_SH,       MIPS_SWL,      MIPS_SW,       MIPS_SDL,      MIPS_SDR,    MIPS_SWR,    MIPS_CACHE},
 		{MIPS_LL,       MIPS_LWC1,     MIPS_LWC2,     MIPS_PREF,     MIPS_LLD,      MIPS_LDC1,   MIPS_LDC2,   MIPS_LD},
 		{MIPS_SC,       MIPS_SWC1,     MIPS_SWC2,     MIPS_INVALID,  MIPS_SCD,      MIPS_SDC1,   MIPS_SDC2,   MIPS_SD}
+	},{ //MIPS version 6 (MIPS64)
+		{MIPS_INVALID,  MIPS_INVALID,  MIPS_J,        MIPS_JAL,      MIPS_BEQ,      MIPS_BNE,    MIPS_BLEZ,   MIPS_BGTZ},
+		{MIPS_ADDI,     MIPS_ADDIU,    MIPS_SLTI,     MIPS_SLTIU,    MIPS_ANDI,     MIPS_ORI,    MIPS_XORI,   MIPS_LUI},
+		{MIPS_COP0,     MIPS_COP1,     MIPS_COP2,     MIPS_COP1X,    MIPS_BEQL,     MIPS_BNEL,   MIPS_BLEZL,  MIPS_BGTZL},
+		{MIPS_DADDI,    MIPS_DADDIU,   MIPS_INVALID,  MIPS_INVALID,  MIPS_INVALID,  MIPS_JALX,   MIPS_INVALID, MIPS_INVALID},
+		{MIPS_LB,       MIPS_LH,       MIPS_LWL,      MIPS_LW,       MIPS_LBU,      MIPS_LHU,    MIPS_LWR,    MIPS_LWU},
+		{MIPS_SB,       MIPS_SH,       MIPS_SWL,      MIPS_SW,       MIPS_SDL,      MIPS_SDR,    MIPS_SWR,    MIPS_CACHE},
+		{MIPS_LL,       MIPS_LWC1,     MIPS_LWC2,     MIPS_PREF,     MIPS_LLD,      MIPS_LDC1,   MIPS_LDC2,   MIPS_LD},
+		{MIPS_SC,       MIPS_SWC1,     MIPS_SWC2,     MIPS_INVALID,  MIPS_SCD,      MIPS_SDC1,   MIPS_SDC2,   MIPS_SD}
 	}
 };
 
 //Fields are: [Version][function_high][function_low]
-static Operation mips_special_table[5][8][8] = {
+static Operation mips_special_table[6][8][8] = {
 	{	//MIPS version 1
 		{MIPS_SLL, MIPS_INVALID, MIPS_SRL, MIPS_SRA, MIPS_SLLV, MIPS_INVALID, MIPS_SRLV, MIPS_SRAV},
 		{MIPS_JR, MIPS_JALR, MIPS_INVALID, MIPS_INVALID, MIPS_SYSCALL, MIPS_BREAK},
@@ -147,10 +157,19 @@ static Operation mips_special_table[5][8][8] = {
 		{MIPS_INVALID, MIPS_INVALID, MIPS_SLT, MIPS_SLTU, MIPS_DADD, MIPS_DADDU, MIPS_DSUB, MIPS_DSUBU},
 		{MIPS_TGE, MIPS_TGEU, MIPS_TLT, MIPS_TLTU, MIPS_TEQ, MIPS_INVALID, MIPS_TNE},
 		{MIPS_DSLL, MIPS_INVALID, MIPS_DSRL, MIPS_DSRA, MIPS_DSLL32, MIPS_INVALID, MIPS_DSRL32, MIPS_DSRA32}
+	},{	//MIPS version 6
+		{MIPS_SLL, MIPS_MOVCI, MIPS_SRL, MIPS_SRA, MIPS_SLLV, MIPS_INVALID, MIPS_SRLV, MIPS_SRAV},
+		{MIPS_JR, MIPS_JALR, MIPS_MOVZ, MIPS_MOVN, MIPS_SYSCALL, MIPS_BREAK, MIPS_INVALID, MIPS_SYNC},
+		{MIPS_MFHI, MIPS_MTHI, MIPS_MFLO, MIPS_MTLO},
+		{MIPS_MULT, MIPS_MULTU, MIPS_DIV, MIPS_DIVU},
+		{MIPS_ADD, MIPS_ADDU, MIPS_SUB, MIPS_SUBU, MIPS_AND, MIPS_OR, MIPS_XOR, MIPS_NOR},
+		{MIPS_INVALID, MIPS_INVALID, MIPS_SLT, MIPS_SLTU, MIPS_DADD, MIPS_DADDU, MIPS_DSUB, MIPS_DSUBU},
+		{MIPS_TGE, MIPS_TGEU, MIPS_TLT, MIPS_TLTU, MIPS_TEQ, MIPS_INVALID, MIPS_TNE},
+		{MIPS_DSLL, MIPS_INVALID, MIPS_DSRL, MIPS_DSRA, MIPS_DSLL32, MIPS_INVALID, MIPS_DSRL32, MIPS_DSRA32}
 	}
 };
 
-static Operation mips_regimm_table[5][4][8] = {
+static Operation mips_regimm_table[6][4][8] = {
 	{	//MIPS version 1
 		{MIPS_BLTZ, MIPS_BGEZ},
 		{MIPS_INVALID},
@@ -168,6 +187,11 @@ static Operation mips_regimm_table[5][4][8] = {
 		{MIPS_TGEI, MIPS_TGEIU, MIPS_TLTI, MIPS_TLTIU, MIPS_TEQI, MIPS_INVALID, MIPS_TNEI},
 		{MIPS_BLTZAL, MIPS_BGEZAL, MIPS_BLTZALL, MIPS_BGEZALL},
 	},{	//MIPS version 5
+		{MIPS_BLTZ, MIPS_BGEZ, MIPS_BLTZL, MIPS_BGEZL},
+		{MIPS_TGEI, MIPS_TGEIU, MIPS_TLTI, MIPS_TLTIU, MIPS_TEQI, MIPS_INVALID, MIPS_TNEI},
+		{MIPS_BLTZAL, MIPS_BGEZAL, MIPS_BLTZALL, MIPS_BGEZALL},
+		{MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_INVALID, MIPS_SYNCI}
+	},{	//MIPS version 6
 		{MIPS_BLTZ, MIPS_BGEZ, MIPS_BLTZL, MIPS_BGEZL},
 		{MIPS_TGEI, MIPS_TGEIU, MIPS_TLTI, MIPS_TLTIU, MIPS_TEQI, MIPS_INVALID, MIPS_TNEI},
 		{MIPS_BLTZAL, MIPS_BGEZAL, MIPS_BLTZALL, MIPS_BGEZALL},
@@ -865,8 +889,15 @@ uint32_t mips_decompose_instruction(
 		uint32_t version,
 		uint64_t address)
 {
+	uint64_t registerMask;
+
 	if (version >= MIPS_VERSION_END)
 		return 1;
+	if (version == MIPS_64) {
+		registerMask = 0xFFFFFFFFFFFFFFFFULL;
+	} else {
+		registerMask = 0xFFFFFFFFULL;
+	}
 	if (ins.value == 0)
 	{
 		instruction->operation = MIPS_NOP;
@@ -894,7 +925,7 @@ uint32_t mips_decompose_instruction(
 	}
 
 	//Now deal with aliases and stage 2 decoding
-	if (version == MIPS_32)
+	if (version == MIPS_32 || version == MIPS_64)
 	{
 		switch (instruction->operation)
 		{
@@ -1250,7 +1281,7 @@ uint32_t mips_decompose_instruction(
 			break;
 		case MIPS_BAL:
 		case MIPS_B:
-			INS_1(LABEL, 4 + (uint32_t)address + (ins.i.immediate<<2));
+			INS_1(LABEL, (4 + address + (ins.i.immediate<<2)) & registerMask);
 			break;
 		//2 operand instructions
 		case MIPS_JALR_HB:
@@ -1272,11 +1303,11 @@ uint32_t mips_decompose_instruction(
 		case MIPS_BC1TL:
 			if (((ins.value >> 18) & 7) == 0)
 			{
-				INS_1(LABEL, 4 + (uint32_t)address + (ins.i.immediate<<2));
+				INS_1(LABEL, (4 + address + (ins.i.immediate<<2)) & registerMask);
 			}
 			else
 			{
-				INS_2(FLAG, (FPCCREG_FCC0 + ((ins.value >> 18) & 7)), LABEL, 4 + (uint32_t)address + (ins.i.immediate<<2));
+				INS_2(FLAG, (FPCCREG_FCC0 + ((ins.value >> 18) & 7)), LABEL, (4 + address + (ins.i.immediate<<2)) & registerMask);
 			}
 			break;
 		case MIPS_CLO:
@@ -1308,11 +1339,11 @@ uint32_t mips_decompose_instruction(
 			break;
 		case MIPS_BC1EQZ:
 		case MIPS_BC1NEZ:
-			INS_2(REG, ins.f.ft + FPREG_F0, IMM, (uint32_t)address + 4 + (ins.i.immediate << 2));
+			INS_2(REG, ins.f.ft + FPREG_F0, IMM, (address + 4 + (ins.i.immediate << 2)) & registerMask);
 			break;
 		case MIPS_BC2EQZ:
 		case MIPS_BC2NEZ:
-			INS_2(REG, (CPREG_0 + ins.r.rt), IMM, (uint32_t)address + 4 + (ins.i.immediate << 2));
+			INS_2(REG, (CPREG_0 + ins.r.rt), IMM, (address + 4 + (ins.i.immediate << 2)) & registerMask);
 			break;
 		case MIPS_ABS_S:
 		case MIPS_ABS_D:
@@ -1356,14 +1387,14 @@ uint32_t mips_decompose_instruction(
 		case MIPS_BLTZALL:
 		case MIPS_BLTZL:
 		case MIPS_BEQZ:
-			INS_2(REG, ins.i.rs, LABEL, (4 + (uint32_t)address + (ins.i.immediate<<2)))
+			INS_2(REG, ins.i.rs, LABEL, (4 + ins.i.immediate<<2) & registerMask)
 			break;
 		case MIPS_BGTZ:
 		case MIPS_BGTZL:
 		case MIPS_BLEZ:
 		case MIPS_BLEZL:
 		case MIPS_BLTZ:
-			INS_2(REG, ins.i.rs, LABEL, (4 + (uint32_t)address + (ins.i.immediate<<2)))
+			INS_2(REG, ins.i.rs, LABEL, (4 + address + (ins.i.immediate<<2) & registerMask))
 			if (ins.i.rt != 0)
 				return 1;
 			break;
@@ -1701,7 +1732,7 @@ uint32_t mips_decompose_instruction(
 		case MIPS_BEQL:
 		case MIPS_BNE:
 		case MIPS_BNEL:
-			INS_3(REG, ins.i.rs, REG, ins.i.rt, LABEL, (4 + (uint32_t)address + (ins.i.immediate<<2)))
+			INS_3(REG, ins.i.rs, REG, ins.i.rt, LABEL, (4 + address + (ins.i.immediate<<2) & registerMask))
 			break;
 		case MIPS_ROTR:
 			INS_3(REG, ins.r.rd, REG, ins.r.rt, IMM, ins.r.sa)

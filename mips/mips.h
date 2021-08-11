@@ -463,10 +463,14 @@ namespace mips
 		REG_A1,
 		REG_A2,
 		REG_A3,
-		REG_T0,      // Temporaries
+		REG_T0,      // Temporaries, or extra arguments if N64
+		REG_A4 = REG_T0,
 		REG_T1,
+		REG_A5 = REG_T1,
 		REG_T2,
+		REG_A6 = REG_T2,
 		REG_T3,
+		REG_A7 = REG_T3,
 		REG_T4,
 		REG_T5,
 		REG_T6,
@@ -601,6 +605,7 @@ namespace mips
 		MIPS_3,
 		MIPS_4,
 		MIPS_32,
+		MIPS_64,
 		MIPS_VERSION_END
 	};
 
@@ -715,7 +720,7 @@ namespace mips
 	struct InstructionOperand {
 		uint32_t operandClass;
 		uint32_t reg;
-		uint32_t immediate;
+		uint64_t immediate;
 	};
 
 #ifndef __cplusplus
