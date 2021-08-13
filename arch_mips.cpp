@@ -984,11 +984,7 @@ public:
 
 	virtual BNRegisterInfo GetRegisterInfo(uint32_t reg) override
 	{
-		BNRegisterInfo result = {reg, 0, 4, NoExtend};
-		if (m_bits == 64) {
-			result.size = 8;
-			result.extend = SignExtendToFullWidth;
-		}
+		BNRegisterInfo result = {reg, 0, m_bits / 8, NoExtend};
 		return result;
 	}
 
