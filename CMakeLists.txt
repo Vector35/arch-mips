@@ -8,6 +8,14 @@ if((NOT BN_API_PATH) AND (NOT BN_INTERNAL_BUILD))
 		message(FATAL_ERROR "Provide path to Binary Ninja API source in BN_API_PATH")
 	endif()
 endif()
+
+if((NOT BN_INSTALL_DIR) AND (NOT BN_INTERNAL_BUILD) AND WIN32)
+	set(BN_INSTALL_DIR $ENV{BN_INSTALL_DIR})
+	if(NOT BN_INSTALL_DIR)
+		message(FATAL_ERROR "Provide path to Binary Ninja installation in BN_INSTALL_DIR")
+	endif()
+endif()
+
 if(NOT BN_INTERNAL_BUILD)
 	add_subdirectory(${BN_API_PATH} ${PROJECT_BINARY_DIR}/api)
 endif()
@@ -28,7 +36,13 @@ target_include_directories(arch_mips
 	PRIVATE ${PROJECT_SOURCE_DIR}
 	PRIVATE ${PROJECT_SOURCE_DIR}/mips)
 
-target_link_libraries(arch_mips binaryninjaapi)
+if(WIN32)
+	target_link_directories(arch_mips
+		PRIVATE ${BN_INSTALL_DIR})
+	target_link_libraries(arch_mips binaryninjaapi binaryninjacore)
+else()
+	target_link_libraries(arch_mips binaryninjaapi)
+endif()
 
 set_target_properties(arch_mips PROPERTIES
     CXX_STANDARD 17
