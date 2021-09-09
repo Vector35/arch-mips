@@ -1540,9 +1540,9 @@ extern "C"
 
 		// Register the architectures with the binary format parsers so that they know when to use
 		// these architectures for disassembling an executable file
+		BinaryViewType::RegisterArchitecture("ELF", 0x08, BigEndian, mips64eb);
 		BinaryViewType::RegisterArchitecture("ELF", 0x08, LittleEndian, mipsel);
 		BinaryViewType::RegisterArchitecture("ELF", 0x08, BigEndian, mipseb);
-		BinaryViewType::RegisterArchitecture("ELF", 0x08, BigEndian, mips64eb);
 		BinaryViewType::RegisterArchitecture("PE", 0x166, LittleEndian, mipsel);
 		return true;
 	}
