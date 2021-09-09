@@ -46,13 +46,13 @@ int main(int ac, char **av)
 
 	if(ac == 1) {
 		printf("usage:\n");
-		printf("\t./%s [<address>] <instruction_word>\n", av[0]);
-		printf("\t./%s <instruction_word>\n", av[0]);
-		printf("\t./%s test\n", av[0]);
+		printf("\t%s [<address>] <instruction_word>\n", av[0]);
+		printf("\t%s <instruction_word>\n", av[0]);
+		printf("\t%s test\n", av[0]);
 		printf("examples:\n");
-		printf("\t./%s 0 14E00003\n", av[0]);
-		printf("\t./%s 00405A58 14E00003\n", av[0]);
-		printf("\t./%s test\n", av[0]);
+		printf("\t%s 0 14E00003\n", av[0]);
+		printf("\t%s 00405A58 14E00003\n", av[0]);
+		printf("\t%s test\n", av[0]);
 		exit(-1);
 	}
 
@@ -71,8 +71,8 @@ int main(int ac, char **av)
 		insword = strtoul(av[1], NULL, 16);
 	}
 	else if(ac == 3) {
-		address = 0;
-		insword = strtoul(av[1], NULL, 16);
+		address = strtoul(av[1], NULL, 16);
+		insword = strtoul(av[2], NULL, 16);
 	}
 
 	if(0 == disassemble(insword, address, MIPS_32, instxt)) {
