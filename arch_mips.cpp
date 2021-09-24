@@ -772,6 +772,46 @@ public:
 		return true;
 	}
 
+	virtual string GetIntrinsicName(uint32_t intrinsic) override
+	{
+		switch (intrinsic)
+		{
+			case MIPS_INTRIN_WSBH:
+				return "__wsbh";
+			default:
+				return "";
+		}
+	}
+
+	virtual vector<uint32_t> GetAllIntrinsics() override
+	{
+		return vector<uint32_t>{
+			MIPS_INTRIN_WSBH,
+		};
+	}
+
+	virtual vector<NameAndType> GetIntrinsicInputs(uint32_t intrinsic) override
+	{
+		switch (intrinsic)
+		{
+			case MIPS_INTRIN_WSBH:
+				return {NameAndType(Type::IntegerType(4, false))};
+			default:
+				return vector<NameAndType>();
+		}
+	}
+
+	virtual vector<Confidence<Ref<Type>>> GetIntrinsicOutputs(uint32_t intrinsic) override
+	{
+		switch (intrinsic)
+		{
+			case MIPS_INTRIN_WSBH:
+				return {Type::IntegerType(4, false)};
+			default:
+				return vector<Confidence<Ref<Type>>>();
+		}
+	}
+
 	virtual bool IsNeverBranchPatchAvailable(const uint8_t* data, uint64_t addr, size_t len) override
 	{
 		Instruction instr;
