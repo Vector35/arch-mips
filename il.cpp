@@ -700,7 +700,7 @@ bool GetLowLevelILForInstruction(Architecture* arch, uint64_t addr, LowLevelILFu
 			break;
 		case MIPS_ROTR:
 		case MIPS_ROTRV:
-			il.AddInstruction(il.Unimplemented());
+			il.AddInstruction(SetRegisterOrNop(il, 4, registerSize, op1.reg, il.RotateRight(4, ReadILOperand(il, instr, 2, registerSize), ReadILOperand(il, instr, 3, registerSize))));
 			break;
 		case MIPS_SC:
 			il.AddInstruction(il.UnimplementedMemoryRef(4, ReadILOperand(il, instr, 2, registerSize)));
