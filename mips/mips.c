@@ -455,8 +455,14 @@ static const char* const OperationStrings[] = {
 		"div.s",
 		"div",
 		"divu",
+		"dmfc0",
+		"dmfc1",
+		"dmfc2",
 		"dmult",
 		"dmultu",
+		"dmtc0",
+		"dmtc1",
+		"dmtc2",
 		"dret",
 		"dsll",
 		"dsll32",
@@ -973,8 +979,18 @@ uint32_t mips_decompose_instruction(
 							return 1;
 						instruction->operation = MIPS_MFC0;
 						break;
+					case 1:
+						if (((ins.value >> 3) & 0xff) != 0)
+							return 1;
+						instruction->operation = MIPS_DMFC0;
+						break;
 					case 2:  instruction->operation = MIPS_CFC0;   break;
 					case 4:  instruction->operation = MIPS_MTC0;   break;
+					case 5:
+						if (((ins.value >> 3) & 0xff) != 0)
+							return 1;
+						instruction->operation = MIPS_DMTC0;
+						break;
 					case 6:  instruction->operation = MIPS_CTC0;    break;
 					case 10: instruction->operation = MIPS_RDPGPR; break;
 					case 11:
@@ -1003,9 +1019,19 @@ uint32_t mips_decompose_instruction(
 				switch (ins.r.rs)
 				{
 					case 0:  instruction->operation = MIPS_MFC1;    break;
+					case 1:
+						if ((ins.value & 0x7ff) != 0)
+							return 1;
+						instruction->operation = MIPS_DMFC1;
+						break;
 					case 2:  instruction->operation = MIPS_CFC1;    break;
 					case 3:  instruction->operation = MIPS_MFHC1;   break;
 					case 4:  instruction->operation = MIPS_MTC1;    break;
+					case 5:
+						if ((ins.value & 0x7ff) != 0)
+							return 1;
+						instruction->operation = MIPS_DMTC1;
+						break;
 					case 6:  instruction->operation = MIPS_CTC1;    break;
 					case 7:  instruction->operation = MIPS_MTHC1;   break;
 					case 8:
@@ -1076,11 +1102,11 @@ uint32_t mips_decompose_instruction(
 					static const Operation opmap[8] =
 					{
 						MIPS_MFC2,    // 00000
-						MIPS_INVALID, // 00001
+						MIPS_DMFC2,   // 00001
 						MIPS_CFC2,    // 00010
 						MIPS_MFHC2,   // 00011
 						MIPS_MTC2,    // 00100
-						MIPS_INVALID, // 00101
+						MIPS_DMTC2,   // 00101
 						MIPS_CTC2,    // 00110
 						MIPS_MTHC2    // 00111
 					};
@@ -1459,15 +1485,19 @@ uint32_t mips_decompose_instruction(
 		case MIPS_CTC1:
 			INS_2(REG, ins.r.rt, REG, ins.f.fs + CPREG_0)
 			break;
+		case MIPS_DMFC1:
 		case MIPS_MFC1:
 		case MIPS_MFHC1:
+		case MIPS_DMTC1:
 		case MIPS_MTC1:
 		case MIPS_MTHC1:
 			INS_2(REG, ins.r.rt, REG, ins.f.fs + FPREG_F0)
 			if (ins.r.function + ins.r.sa != 0)
 				return 1;
 			break;
+		case MIPS_DMFC2:
 		case MIPS_MFC2:
+		case MIPS_DMTC2:
 		case MIPS_MTC2:
 		case MIPS_CFC2:
 		case MIPS_MFHC2:
@@ -1771,6 +1801,8 @@ uint32_t mips_decompose_instruction(
 			if (ins.r.sa != 0)
 				return 1;
 			break;
+		case MIPS_DMFC0:
+		case MIPS_DMTC0:
 		case MIPS_MFC0:
 		case MIPS_MTC0:
 			INS_3(REG, ins.r.rt, REG, ins.r.rd, IMM, (ins.r.function & 7))
