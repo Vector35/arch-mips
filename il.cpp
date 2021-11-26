@@ -462,6 +462,9 @@ bool GetLowLevelILForInstruction(Architecture* arch, uint64_t addr, LowLevelILFu
 		case MIPS_MTLO:
 			il.AddInstruction(il.SetRegister(registerSize, REG_LO, ReadILOperand(il, instr, 1, registerSize)));
 			break;
+		case MIPS_DMFC0:
+			il.AddInstruction(SetRegisterOrNop(il, 8, registerSize, op1.reg, il.Register(8, REG_COP0)));
+			break;
 		case MIPS_MFC0:
 			il.AddInstruction(SetRegisterOrNop(il, 4, registerSize, op1.reg, il.Register(4, REG_COP0)));
 			break;
@@ -470,6 +473,9 @@ bool GetLowLevelILForInstruction(Architecture* arch, uint64_t addr, LowLevelILFu
 			break;
 		case MIPS_MFC2:
 			il.AddInstruction(SetRegisterOrNop(il, 4, registerSize, op1.reg, il.Register(4, REG_COP2)));
+			break;
+		case MIPS_DMTC0:
+			il.AddInstruction(il.SetRegister(8, REG_COP0, ReadILOperand(il, instr, 1, registerSize)));
 			break;
 		case MIPS_MTC0:
 			il.AddInstruction(il.SetRegister(4, REG_COP0, ReadILOperand(il, instr, 1, registerSize)));
