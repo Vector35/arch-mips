@@ -1037,6 +1037,14 @@ public:
 	{
 		return REG_RA;
 	}
+
+	virtual vector<uint32_t> GetSystemRegisters() override
+	{
+		return vector< uint32_t> {
+			REG_COP0, REG_COP1, REG_COP2, REG_COP3
+		};
+	}
+
 };
 
 class MipsO32CallingConvention: public CallingConvention
