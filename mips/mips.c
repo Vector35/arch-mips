@@ -800,10 +800,76 @@ static const char * const RegisterStrings[] = {
 	"$f31",
 	"$lo",
 	"$hi",
-	"$cop0",
-	"$cop1",
-	"$cop2",
-	"$cop3"
+	"cop0_Index",
+	"cop0_MVPControl",
+	"cop0_MVPConf0",
+	"cop0_MVPConf1",
+	"cop0_Random",
+	"cop0_VPEControl",
+	"cop0_VPEConf0",
+	"cop0_VPEConf1",
+	"cop0_YQMask",
+	"cop0_VPESchedule",
+	"cop0_VPEScheFBack",
+	"cop0_VPEOpt",
+	"cop0_EntryLo0",
+	"cop0_TCStatus",
+	"cop0_TCBind",
+	"cop0_TCRestart",
+	"cop0_TCHalt",
+	"cop0_TCContext",
+	"cop0_TCSchedule",
+	"cop0_TCScheFBack",
+	"cop0_EntryLo1",
+	"cop0_Context",
+	"cop0_ContextConfig",
+	"cop0_PageMask",
+	"cop0_PageGrain",
+	"cop0_Wired",
+	"cop0_SRSConf0",
+	"cop0_SRSConf1",
+	"cop0_SRSConf2",
+	"cop0_SRSConf3",
+	"cop0_SRSConf4",
+	"cop0_HWREna",
+	"cop0_BadVAddr",
+	"cop0_Count",
+	"cop0_EntryHi",
+	"cop0_Compare",
+	"cop0_Status",
+	"cop0_IntCtl",
+	"cop0_SRSCtl",
+	"cop0_SRSMap",
+	"cop0_Cause",
+	"cop0_EPC",
+	"cop0_PrId",
+	"cop0_EBase",
+	"cop0_Config",
+	"cop0_Config1",
+	"cop0_Config2",
+	"cop0_Config3",
+	"cop0_LLAddr",
+	"cop0_WatchLo",
+	"cop0_WatchHi",
+	"cop0_XContext",
+	"cop0_Debug",
+	"cop0_TraceControl",
+	"cop0_TraceControl2",
+	"cop0_UserTraceData",
+	"cop0_TraceBPC",
+	"cop0_DEPC",
+	"cop0_PerfCnt",
+	"cop0_ErrCtl",
+	"cop0_CacheErr0",
+	"cop0_CacheErr1",
+	"cop0_CacheErr2",
+	"cop0_CacheErr3",
+	"cop0_TagLo",
+	"cop0_DataLo",
+	"cop0_TagHi",
+	"cop0_DataHi",
+	"cop0_ErrorEPC",
+	"cop0_DESAVE",
 };
 
 static const char * const FlagStrings[] = {
@@ -1615,7 +1681,6 @@ uint32_t mips_decompose_instruction(
 		case MIPS_SDR:
 		case MIPS_SH:
 		case MIPS_SW:
-		case MIPS_SWC3:
 		case MIPS_SWL:
 		case MIPS_SWR:
 			instruction->operands[0].operandClass = REG;
@@ -1631,17 +1696,6 @@ uint32_t mips_decompose_instruction(
 			instruction->operands[1].operandClass = MEM_IMM;
 			instruction->operands[0].immediate = ins.i.rt;
 			instruction->operands[1].reg = ins.i.rs;
-			instruction->operands[1].immediate = ins.i.immediate;
-			break;
-		case MIPS_LDC1:
-		case MIPS_LWC1:
-		case MIPS_LWC3:
-		case MIPS_SDC1:
-		case MIPS_SWC1:
-			instruction->operands[0].operandClass = REG;
-			instruction->operands[1].operandClass = MEM_IMM;
-			instruction->operands[0].reg = ins.f.ft + FPREG_F0;
-			instruction->operands[1].reg = ins.f.fr;
 			instruction->operands[1].immediate = ins.i.immediate;
 			break;
 		case MIPS_SUXC1:
@@ -1663,13 +1717,21 @@ uint32_t mips_decompose_instruction(
 			instruction->operands[1].immediate = ins.f.ft;
 			instruction->operands[1].reg = ins.f.fr;
 			break;
+		case MIPS_SWC1:
 		case MIPS_SWC2:
+		case MIPS_SWC3:
+		case MIPS_LDC1:
 		case MIPS_LDC2:
+		case MIPS_LDC3:
+		case MIPS_SDC1:
 		case MIPS_SDC2:
+		case MIPS_SDC3:
+		case MIPS_LWC1:
 		case MIPS_LWC2:
-			instruction->operands[0].operandClass = REG;
+		case MIPS_LWC3:
+			instruction->operands[0].operandClass = IMM;
 			instruction->operands[1].operandClass = MEM_IMM;
-			instruction->operands[0].reg = ins.i.rt + CPREG_0;
+			instruction->operands[0].reg = ins.i.rt;
 			instruction->operands[1].reg = ins.i.rs;
 			instruction->operands[1].immediate = ins.i.immediate;
 			break;
@@ -1805,7 +1867,7 @@ uint32_t mips_decompose_instruction(
 		case MIPS_DMTC0:
 		case MIPS_MFC0:
 		case MIPS_MTC0:
-			INS_3(REG, ins.r.rt, REG, ins.r.rd, IMM, (ins.r.function & 7))
+			INS_3(REG, ins.r.rt, IMM, ins.r.rd, IMM, (ins.r.function & 7))
 			break;
 		case MIPS_MADD_S:
 		case MIPS_MADD_D:

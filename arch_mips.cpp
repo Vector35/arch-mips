@@ -358,6 +358,11 @@ protected:
 			result.AddBranch(FalseBranch, addr + 8, nullptr, hasBranchDelay);
 			break;
 
+		//Exception return instruction
+		case MIPS_ERET:
+			result.AddBranch(FunctionReturn, 0, nullptr, hasBranchDelay);
+			break;
+
 		default:
 			break;
 		}
@@ -781,6 +786,22 @@ public:
 		{
 			case MIPS_INTRIN_WSBH:
 				return "__wsbh";
+			case MIPS_INTRIN_MFC0:
+				return "moveFromCoprocessor";
+			case MIPS_INTRIN_MFC_UNIMPLEMENTED:
+				return "moveFromCoprocessorUnimplemented";
+			case MIPS_INTRIN_MTC0:
+				return "moveToCoprocessor";
+			case MIPS_INTRIN_MTC_UNIMPLEMENTED:
+				return "moveToCoprocessorUnimplemented";
+			case MIPS_INTRIN_DMFC0:
+				return "moveDwordFromCoprocessor";
+			case MIPS_INTRIN_DMFC_UNIMPLEMENTED:
+				return "moveDwordFromCoprocessorUnimplemented";
+			case MIPS_INTRIN_DMTC0:
+				return "moveDwordToCoprocessor";
+			case MIPS_INTRIN_DMTC_UNIMPLEMENTED:
+				return "moveDwordToCoprocessorUnimplemented";
 			default:
 				return "";
 		}
@@ -790,6 +811,14 @@ public:
 	{
 		return vector<uint32_t>{
 			MIPS_INTRIN_WSBH,
+			MIPS_INTRIN_MFC0,
+			MIPS_INTRIN_MFC_UNIMPLEMENTED,
+			MIPS_INTRIN_MTC0,
+			MIPS_INTRIN_MTC_UNIMPLEMENTED,
+			MIPS_INTRIN_DMFC0,
+			MIPS_INTRIN_DMFC_UNIMPLEMENTED,
+			MIPS_INTRIN_DMTC0,
+			MIPS_INTRIN_DMTC_UNIMPLEMENTED,
 		};
 	}
 
@@ -799,6 +828,50 @@ public:
 		{
 			case MIPS_INTRIN_WSBH:
 				return {NameAndType(Type::IntegerType(4, false))};
+			case MIPS_INTRIN_MFC0:
+				return {
+					NameAndType("register", Type::IntegerType(4, false)),
+				};
+			case MIPS_INTRIN_MFC_UNIMPLEMENTED:
+				return {
+					NameAndType("coprocessor", Type::IntegerType(4, false)),
+					NameAndType("register", Type::IntegerType(4, false)),
+					NameAndType("selector", Type::IntegerType(4, false)),
+				};
+			case MIPS_INTRIN_MTC0:
+				return {
+					NameAndType("register", Type::IntegerType(4, false)),
+					NameAndType("value", Type::IntegerType(4, false)),
+				};
+			case MIPS_INTRIN_MTC_UNIMPLEMENTED:
+				return {
+					NameAndType("coprocessor", Type::IntegerType(4, false)),
+					NameAndType("register", Type::IntegerType(4, false)),
+					NameAndType("selector", Type::IntegerType(4, false)),
+					NameAndType("value", Type::IntegerType(4, false)),
+				};
+			case MIPS_INTRIN_DMFC0:
+				return {
+					NameAndType("register", Type::IntegerType(8, false)),
+				};
+			case MIPS_INTRIN_DMFC_UNIMPLEMENTED:
+				return {
+					NameAndType("coprocessor", Type::IntegerType(4, false)),
+					NameAndType("register", Type::IntegerType(4, false)),
+					NameAndType("selector", Type::IntegerType(4, false)),
+				};
+			case MIPS_INTRIN_DMTC0:
+				return {
+					NameAndType("register", Type::IntegerType(8, false)),
+					NameAndType("value", Type::IntegerType(8, false)),
+				};
+			case MIPS_INTRIN_DMTC_UNIMPLEMENTED:
+				return {
+					NameAndType("coprocessor", Type::IntegerType(4, false)),
+					NameAndType("register", Type::IntegerType(4, false)),
+					NameAndType("selector", Type::IntegerType(4, false)),
+					NameAndType("value", Type::IntegerType(8, false)),
+				};
 			default:
 				return vector<NameAndType>();
 		}
@@ -810,6 +883,12 @@ public:
 		{
 			case MIPS_INTRIN_WSBH:
 				return {Type::IntegerType(4, false)};
+			case MIPS_INTRIN_MFC0:
+			case MIPS_INTRIN_MFC_UNIMPLEMENTED:
+				return {Type::IntegerType(4, false)};
+			case MIPS_INTRIN_DMFC0:
+			case MIPS_INTRIN_DMFC_UNIMPLEMENTED:
+				return {Type::IntegerType(8, false)};
 			default:
 				return vector<Confidence<Ref<Type>>>();
 		}
@@ -995,7 +1074,107 @@ public:
 			FPREG_F16,     FPREG_F17,     FPREG_F18,     FPREG_F19,     FPREG_F20,     FPREG_F21,     FPREG_F22,     FPREG_F23,
 			FPREG_F24,     FPREG_F25,     FPREG_F26,     FPREG_F27,     FPREG_F28,     FPREG_F29,     FPREG_F30,     FPREG_F31,
 			FPCCREG_FCC0,  FPCCREG_FCC1,  FPCCREG_FCC2,  FPCCREG_FCC3,  FPCCREG_FCC4,  FPCCREG_FCC5,  FPCCREG_FCC6,  FPCCREG_FCC7,
-			REG_LO, REG_HI, REG_COP0, REG_COP1, REG_COP2, REG_COP3
+			REG_LO, REG_HI,
+			// Coprocessor 0 register 0
+			REG_INDEX,
+			REG_MVP_CONTROL,
+			REG_MVP_CONF0,
+			REG_MVP_CONF1,
+			// Coprocessor 0 register 1
+			REG_RANDOM,
+			REG_VPE_CONTROL,
+			REG_VPE_CONF0,
+			REG_VPE_CONF1,
+			REG_YQ_MASK,
+			REG_VPE_SCHEDULE,
+			REG_VPE_SCHE_FBACK,
+			REG_VPE_OPT,
+			// Coprocessor 0 register 2
+			REG_ENTRY_LO0,
+			REG_TC_STATUS,
+			REG_TC_BIND,
+			REG_TC_RESTART,
+			REG_TC_HALT,
+			REG_TC_CONTEXT,
+			REG_TC_SCHEDULE,
+			REG_TC_SCHE_FBACK,
+			// Coprocessor 0 register 3
+			REG_ENTRY_LO1,
+			// Coprocessor 0 register 4
+			REG_CONTEXT,
+			REG_CONTEXT_CONFIG,
+			// Coprocessor 0 register 5
+			REG_PAGE_MASK,
+			REG_PAGE_GRAIN,
+			// Coprocessor 0 register 6
+			REG_WIRED,
+			REG_SRS_CONF0,
+			REG_SRS_CONF1,
+			REG_SRS_CONF2,
+			REG_SRS_CONF3,
+			REG_SRS_CONF4,
+			// Coprocessor 0 register 7
+			REG_HWR_ENA,
+			// Coprocessor 0 register 8
+			REG_BAD_VADDR,
+			// Coprocessor 0 register 9
+			REG_COUNT,
+			// Coprocessor 0 register 10
+			REG_ENTRY_HI,
+			// Coprocessor 0 register 11
+			REG_COMPARE,
+			// Coprocessor 0 register 12
+			REG_STATUS,
+			REG_INT_CTL,
+			REG_SRS_CTL,
+			REG_SRS_MAP,
+			// Coprocessor 0 register 13
+			REG_CAUSE,
+			// Coprocessor 0 register 14
+			REG_EPC,
+			// Coprocessor 0 register 15
+			REG_PR_ID,
+			REG_EBASE,
+			// Coprocessor 0 register 16
+			REG_CONFIG,
+			REG_CONFIG1,
+			REG_CONFIG2,
+			REG_CONFIG3,
+			// Coprocessor 0 register 17
+			REG_LLADDR,
+			// Coprocessor 0 register 18
+			REG_WATCH_LO,
+			// Coprocessor 0 register 19
+			REG_WATCH_HI,
+			// Coprocessor 0 register 20
+			REG_XCONTEXT,
+			// Coprocessor 0 register 23
+			REG_DEBUG,
+			REG_TRACE_CONTROL,
+			REG_TRACE_CONTROL2,
+			REG_USER_TRACE_DATA,
+			REG_TRACE_BPC,
+			// Coprocessor 0 register 24
+			REG_DEPC,
+			// Coprocessor 0 register 25
+			REG_PERF_CNT,
+			// Coprocessor 0 register 26
+			REG_ERR_CTL,
+			// Coprocessor 0 register 27
+			REG_CACHE_ERR0,
+			REG_CACHE_ERR1,
+			REG_CACHE_ERR2,
+			REG_CACHE_ERR3,
+			// Coprocessor 0 register 28
+			REG_TAG_LO,
+			REG_DATA_LO,
+			// Coprocessor 0 register 29
+			REG_TAG_HI,
+			REG_DATA_HI,
+			// Coprocessor 0 register 30
+			REG_ERROR_EPC,
+			// Coprocessor 0 register 31
+			REG_DESAVE,
 		};
 	}
 
@@ -1014,7 +1193,107 @@ public:
 			FPREG_F8,      FPREG_F9,      FPREG_F10,     FPREG_F11,     FPREG_F12,     FPREG_F13,     FPREG_F14,     FPREG_F15,
 			FPREG_F16,     FPREG_F17,     FPREG_F18,     FPREG_F19,     FPREG_F20,     FPREG_F21,     FPREG_F22,     FPREG_F23,
 			FPREG_F24,     FPREG_F25,     FPREG_F26,     FPREG_F27,     FPREG_F28,     FPREG_F29,     FPREG_F30,     FPREG_F31,
-			REG_LO, REG_HI, REG_COP0, REG_COP1, REG_COP2, REG_COP3
+			REG_LO, REG_HI,
+			// Coprocessor 0 register 0
+			REG_INDEX,
+			REG_MVP_CONTROL,
+			REG_MVP_CONF0,
+			REG_MVP_CONF1,
+			// Coprocessor 0 register 1
+			REG_RANDOM,
+			REG_VPE_CONTROL,
+			REG_VPE_CONF0,
+			REG_VPE_CONF1,
+			REG_YQ_MASK,
+			REG_VPE_SCHEDULE,
+			REG_VPE_SCHE_FBACK,
+			REG_VPE_OPT,
+			// Coprocessor 0 register 2
+			REG_ENTRY_LO0,
+			REG_TC_STATUS,
+			REG_TC_BIND,
+			REG_TC_RESTART,
+			REG_TC_HALT,
+			REG_TC_CONTEXT,
+			REG_TC_SCHEDULE,
+			REG_TC_SCHE_FBACK,
+			// Coprocessor 0 register 3
+			REG_ENTRY_LO1,
+			// Coprocessor 0 register 4
+			REG_CONTEXT,
+			REG_CONTEXT_CONFIG,
+			// Coprocessor 0 register 5
+			REG_PAGE_MASK,
+			REG_PAGE_GRAIN,
+			// Coprocessor 0 register 6
+			REG_WIRED,
+			REG_SRS_CONF0,
+			REG_SRS_CONF1,
+			REG_SRS_CONF2,
+			REG_SRS_CONF3,
+			REG_SRS_CONF4,
+			// Coprocessor 0 register 7
+			REG_HWR_ENA,
+			// Coprocessor 0 register 8
+			REG_BAD_VADDR,
+			// Coprocessor 0 register 9
+			REG_COUNT,
+			// Coprocessor 0 register 10
+			REG_ENTRY_HI,
+			// Coprocessor 0 register 11
+			REG_COMPARE,
+			// Coprocessor 0 register 12
+			REG_STATUS,
+			REG_INT_CTL,
+			REG_SRS_CTL,
+			REG_SRS_MAP,
+			// Coprocessor 0 register 13
+			REG_CAUSE,
+			// Coprocessor 0 register 14
+			REG_EPC,
+			// Coprocessor 0 register 15
+			REG_PR_ID,
+			REG_EBASE,
+			// Coprocessor 0 register 16
+			REG_CONFIG,
+			REG_CONFIG1,
+			REG_CONFIG2,
+			REG_CONFIG3,
+			// Coprocessor 0 register 17
+			REG_LLADDR,
+			// Coprocessor 0 register 18
+			REG_WATCH_LO,
+			// Coprocessor 0 register 19
+			REG_WATCH_HI,
+			// Coprocessor 0 register 20
+			REG_XCONTEXT,
+			// Coprocessor 0 register 23
+			REG_DEBUG,
+			REG_TRACE_CONTROL,
+			REG_TRACE_CONTROL2,
+			REG_USER_TRACE_DATA,
+			REG_TRACE_BPC,
+			// Coprocessor 0 register 24
+			REG_DEPC,
+			// Coprocessor 0 register 25
+			REG_PERF_CNT,
+			// Coprocessor 0 register 26
+			REG_ERR_CTL,
+			// Coprocessor 0 register 27
+			REG_CACHE_ERR0,
+			REG_CACHE_ERR1,
+			REG_CACHE_ERR2,
+			REG_CACHE_ERR3,
+			// Coprocessor 0 register 28
+			REG_TAG_LO,
+			REG_DATA_LO,
+			// Coprocessor 0 register 29
+			REG_TAG_HI,
+			REG_DATA_HI,
+			// Coprocessor 0 register 30
+			REG_ERROR_EPC,
+			// Coprocessor 0 register 31
+			REG_DESAVE,
 		};
 	}
 
@@ -1044,7 +1323,106 @@ public:
 	virtual vector<uint32_t> GetSystemRegisters() override
 	{
 		return vector< uint32_t> {
-			REG_COP0, REG_COP1, REG_COP2, REG_COP3
+			// Coprocessor 0 register 0
+			REG_INDEX,
+			REG_MVP_CONTROL,
+			REG_MVP_CONF0,
+			REG_MVP_CONF1,
+			// Coprocessor 0 register 1
+			REG_RANDOM,
+			REG_VPE_CONTROL,
+			REG_VPE_CONF0,
+			REG_VPE_CONF1,
+			REG_YQ_MASK,
+			REG_VPE_SCHEDULE,
+			REG_VPE_SCHE_FBACK,
+			REG_VPE_OPT,
+			// Coprocessor 0 register 2
+			REG_ENTRY_LO0,
+			REG_TC_STATUS,
+			REG_TC_BIND,
+			REG_TC_RESTART,
+			REG_TC_HALT,
+			REG_TC_CONTEXT,
+			REG_TC_SCHEDULE,
+			REG_TC_SCHE_FBACK,
+			// Coprocessor 0 register 3
+			REG_ENTRY_LO1,
+			// Coprocessor 0 register 4
+			REG_CONTEXT,
+			REG_CONTEXT_CONFIG,
+			// Coprocessor 0 register 5
+			REG_PAGE_MASK,
+			REG_PAGE_GRAIN,
+			// Coprocessor 0 register 6
+			REG_WIRED,
+			REG_SRS_CONF0,
+			REG_SRS_CONF1,
+			REG_SRS_CONF2,
+			REG_SRS_CONF3,
+			REG_SRS_CONF4,
+			// Coprocessor 0 register 7
+			REG_HWR_ENA,
+			// Coprocessor 0 register 8
+			REG_BAD_VADDR,
+			// Coprocessor 0 register 9
+			REG_COUNT,
+			// Coprocessor 0 register 10
+			REG_ENTRY_HI,
+			// Coprocessor 0 register 11
+			REG_COMPARE,
+			// Coprocessor 0 register 12
+			REG_STATUS,
+			REG_INT_CTL,
+			REG_SRS_CTL,
+			REG_SRS_MAP,
+			// Coprocessor 0 register 13
+			REG_CAUSE,
+			// Coprocessor 0 register 14
+			REG_EPC,
+			// Coprocessor 0 register 15
+			REG_PR_ID,
+			REG_EBASE,
+			// Coprocessor 0 register 16
+			REG_CONFIG,
+			REG_CONFIG1,
+			REG_CONFIG2,
+			REG_CONFIG3,
+			// Coprocessor 0 register 17
+			REG_LLADDR,
+			// Coprocessor 0 register 18
+			REG_WATCH_LO,
+			// Coprocessor 0 register 19
+			REG_WATCH_HI,
+			// Coprocessor 0 register 20
+			REG_XCONTEXT,
+			// Coprocessor 0 register 23
+			REG_DEBUG,
+			REG_TRACE_CONTROL,
+			REG_TRACE_CONTROL2,
+			REG_USER_TRACE_DATA,
+			REG_TRACE_BPC,
+			// Coprocessor 0 register 24
+			REG_DEPC,
+			// Coprocessor 0 register 25
+			REG_PERF_CNT,
+			// Coprocessor 0 register 26
+			REG_ERR_CTL,
+			// Coprocessor 0 register 27
+			REG_CACHE_ERR0,
+			REG_CACHE_ERR1,
+			REG_CACHE_ERR2,
+			REG_CACHE_ERR3,
+			// Coprocessor 0 register 28
+			REG_TAG_LO,
+			REG_DATA_LO,
+			// Coprocessor 0 register 29
+			REG_TAG_HI,
+			REG_DATA_HI,
+			// Coprocessor 0 register 30
+			REG_ERROR_EPC,
+			// Coprocessor 0 register 31
+			REG_DESAVE,
 		};
 	}
 

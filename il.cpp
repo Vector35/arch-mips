@@ -229,6 +229,220 @@ ExprId GetConditionForInstruction(LowLevelILFunction& il, Instruction& instr, si
 	}
 }
 
+// Get the IL Register for a given cop0 register/selector pair.
+// Returns REG_ZERO for unsupported/unimplemented values.
+static Reg GetCop0Register(uint32_t reg, uint64_t sel)
+{
+	switch (reg) {
+		case 0:
+			switch (sel) {
+				case 0: return REG_INDEX;
+				case 1: return REG_MVP_CONTROL;
+				case 2: return REG_MVP_CONF0;
+				case 3: return REG_MVP_CONF1;
+			}
+			break;
+		case 1:
+			switch (sel) {
+				case 0: return REG_RANDOM;
+				case 1: return REG_VPE_CONTROL;
+				case 2: return REG_VPE_CONF0;
+				case 3: return REG_VPE_CONF1;
+				case 4: return REG_YQ_MASK;
+				case 5: return REG_VPE_SCHEDULE;
+				case 6: return REG_VPE_SCHE_FBACK;
+				case 7: return REG_VPE_OPT;
+			}
+			break;
+		case 2:
+			switch (sel) {
+				case 0: return REG_ENTRY_LO0;
+				case 1: return REG_TC_STATUS;
+				case 2: return REG_TC_BIND;
+				case 3: return REG_TC_RESTART;
+				case 4: return REG_TC_HALT;
+				case 5: return REG_TC_CONTEXT;
+				case 6: return REG_TC_SCHEDULE;
+				case 7: return REG_TC_SCHE_FBACK;
+			}
+			break;
+		case 3:
+			switch (sel) {
+				case 0: return REG_ENTRY_LO1;
+			}
+			break;
+		case 4:
+			switch (sel) {
+				case 0: return REG_CONTEXT;
+				case 1: return REG_CONTEXT_CONFIG;
+			}
+			break;
+		case 5:
+			switch (sel) {
+				case 0: return REG_PAGE_MASK;
+				case 1: return REG_PAGE_GRAIN;
+			}
+			break;
+		case 6:
+			switch (sel) {
+				case 0: return REG_WIRED;
+				case 1: return REG_SRS_CONF0;
+				case 2: return REG_SRS_CONF1;
+				case 3: return REG_SRS_CONF2;
+				case 4: return REG_SRS_CONF3;
+				case 5: return REG_SRS_CONF4;
+			}
+			break;
+		case 7:
+			switch (sel) {
+				case 0: return REG_HWR_ENA;
+			}
+			break;
+		case 8:
+			switch (sel) {
+				case 0: return REG_BAD_VADDR;
+			}
+			break;
+		case 9:
+			switch (sel) {
+				case 0: return REG_COUNT;
+			}
+			break;
+		case 10:
+			switch (sel) {
+				case 0: return REG_ENTRY_HI;
+			}
+			break;
+		case 11:
+			switch (sel) {
+				case 0: return REG_COMPARE;
+			}
+			break;
+		case 12:
+			switch (sel) {
+				case 0: return REG_STATUS;
+				case 1: return REG_INT_CTL;
+				case 2: return REG_SRS_CTL;
+				case 3: return REG_SRS_MAP;
+			}
+			break;
+		case 13:
+			switch (sel) {
+				case 0: return REG_CAUSE;
+			}
+			break;
+		case 14:
+			switch (sel) {
+				case 0: return REG_EPC;
+			}
+			break;
+		case 15:
+			switch (sel) {
+				case 0: return REG_PR_ID;
+				case 1: return REG_EBASE;
+			}
+			break;
+		case 16:
+			switch (sel) {
+				case 0: return REG_CONFIG;
+				case 1: return REG_CONFIG1;
+				case 2: return REG_CONFIG2;
+				case 3: return REG_CONFIG3;
+			}
+			break;
+		case 17:
+			switch (sel) {
+				case 0: return REG_LLADDR;
+			}
+			break;
+		case 20:
+			switch (sel) {
+				case 0: return REG_XCONTEXT;
+			}
+			break;
+		case 23:
+			switch (sel) {
+				case 0: return REG_DEBUG;
+				case 1: return REG_TRACE_CONTROL;
+				case 2: return REG_TRACE_CONTROL2;
+				case 3: return REG_USER_TRACE_DATA;
+				case 4: return REG_TRACE_BPC;
+			}
+			break;
+		case 24:
+			switch (sel) {
+				case 0: return REG_DEPC;
+			}
+			break;
+		case 26:
+			switch (sel) {
+				case 0: return REG_ERR_CTL;
+			}
+			break;
+		case 27:
+			switch (sel) {
+				case 0: return REG_CACHE_ERR0;
+				case 1: return REG_CACHE_ERR1;
+				case 2: return REG_CACHE_ERR2;
+				case 3: return REG_CACHE_ERR3;
+			}
+			break;
+		case 30:
+			switch (sel) {
+				case 0: return REG_ERROR_EPC;
+			}
+			break;
+		case 31:
+			switch (sel) {
+				case 0: return REG_DESAVE;
+			}
+			break;
+	}
+	return REG_ZERO;
+}
+
+static ExprId MoveFromCoprocessor(unsigned cop, LowLevelILFunction& il, size_t loadSize, uint32_t outReg, uint32_t reg, uint64_t sel)
+{
+	if (cop == 0) {
+		Reg copReg = GetCop0Register(reg, sel);
+		switch (copReg) {
+			case REG_ZERO: /* Unimplemented coprocessor register */
+				break;
+			default:
+				return il.Intrinsic(
+						{RegisterOrFlag::Register(outReg)},
+						loadSize == 4 ? MIPS_INTRIN_MFC0 : MIPS_INTRIN_DMFC0,
+						{il.Register(loadSize, copReg)});
+		}
+	}
+
+	return il.Intrinsic(
+			{RegisterOrFlag::Register(outReg)},
+			loadSize == 4 ? MIPS_INTRIN_MFC_UNIMPLEMENTED : MIPS_INTRIN_DMFC_UNIMPLEMENTED,
+			{il.Const(4, cop), il.Const(4, reg), il.Const(4, sel)});
+}
+
+static ExprId MoveToCoprocessor(unsigned cop, LowLevelILFunction& il, size_t storeSize, uint32_t reg, uint64_t sel, ExprId srcExpr)
+{
+	if (cop == 0) {
+		Reg copReg = GetCop0Register(reg, sel);
+		switch (copReg) {
+			case REG_ZERO: /* Unimplemented coprocessor register */
+				break;
+			default:
+				return il.Intrinsic(
+						{},
+						storeSize == 4 ? MIPS_INTRIN_MTC0 : MIPS_INTRIN_DMTC0,
+						{il.Register(storeSize, copReg), srcExpr});
+		}
+	}
+
+	return il.Intrinsic(
+			{},
+			storeSize == 4 ? MIPS_INTRIN_MTC_UNIMPLEMENTED : MIPS_INTRIN_DMTC_UNIMPLEMENTED,
+			{il.Const(4, cop), il.Const(4, reg), il.Const(4, sel), srcExpr});
+}
+
 bool GetLowLevelILForInstruction(Architecture* arch, uint64_t addr, LowLevelILFunction& il, Instruction& instr, size_t addrSize)
 {
 	LowLevelILLabel trueLabel, falseLabel, doneLabel, dirFlagSet, dirFlagClear, dirFlagDone;
@@ -443,6 +657,9 @@ bool GetLowLevelILForInstruction(Architecture* arch, uint64_t addr, LowLevelILFu
 			else
 				il.AddInstruction(il.Jump(ReadILOperand(il, instr, 1, registerSize)));
 			return false;
+		case MIPS_ERET:
+			il.AddInstruction(il.Return(il.Register(registerSize, REG_ERROR_EPC)));
+			break;
 		case MIPS_LBUX:
 		case MIPS_LBU:
 			il.AddInstruction(SetRegisterOrNop(il, registerSize, registerSize, op1.reg, il.ZeroExtend(registerSize, ReadILOperand(il, instr, 2, registerSize, 1))));
@@ -463,28 +680,28 @@ bool GetLowLevelILForInstruction(Architecture* arch, uint64_t addr, LowLevelILFu
 			il.AddInstruction(il.SetRegister(registerSize, REG_LO, ReadILOperand(il, instr, 1, registerSize)));
 			break;
 		case MIPS_DMFC0:
-			il.AddInstruction(SetRegisterOrNop(il, 8, registerSize, op1.reg, il.Register(8, REG_COP0)));
+			il.AddInstruction(MoveFromCoprocessor(0, il, 8, op1.reg, op2.immediate, op3.immediate));
 			break;
 		case MIPS_MFC0:
-			il.AddInstruction(SetRegisterOrNop(il, 4, registerSize, op1.reg, il.Register(4, REG_COP0)));
+			il.AddInstruction(MoveFromCoprocessor(0, il, 4, op1.reg, op2.immediate, op3.immediate));
 			break;
 		case MIPS_MFC1:
-			il.AddInstruction(SetRegisterOrNop(il, 4, registerSize, op1.reg, il.Register(4, op2.reg)));
+			il.AddInstruction(MoveFromCoprocessor(1, il, 4, op1.reg, op2.immediate, op3.immediate));
 			break;
 		case MIPS_MFC2:
-			il.AddInstruction(SetRegisterOrNop(il, 4, registerSize, op1.reg, il.Register(4, REG_COP2)));
+			il.AddInstruction(MoveFromCoprocessor(2, il, 4, op1.reg, op2.immediate, op3.immediate));
 			break;
 		case MIPS_DMTC0:
-			il.AddInstruction(il.SetRegister(8, REG_COP0, ReadILOperand(il, instr, 1, registerSize)));
+			il.AddInstruction(MoveToCoprocessor(0, il, 8, op2.immediate, op3.immediate, ReadILOperand(il, instr, 1, registerSize)));
 			break;
 		case MIPS_MTC0:
-			il.AddInstruction(il.SetRegister(4, REG_COP0, ReadILOperand(il, instr, 1, registerSize)));
+			il.AddInstruction(MoveToCoprocessor(0, il, 4, op2.immediate, op3.immediate, ReadILOperand(il, instr, 1, registerSize)));
 			break;
 		case MIPS_MTC1:
-			il.AddInstruction(il.SetRegister(4, op2.reg, ReadILOperand(il, instr, 1, registerSize)));
+			il.AddInstruction(MoveToCoprocessor(1, il, 4, op2.immediate, op3.immediate, ReadILOperand(il, instr, 1, registerSize)));
 			break;
 		case MIPS_MTC2:
-			il.AddInstruction(il.SetRegister(4, REG_COP2,  ReadILOperand(il, instr, 1, registerSize)));
+			il.AddInstruction(MoveToCoprocessor(2, il, 4, op2.immediate, op3.immediate, ReadILOperand(il, instr, 1, registerSize)));
 			break;
 		case MIPS_MOVE:
 			il.AddInstruction(SetRegisterOrNop(il, registerSize, registerSize, op1.reg, ReadILOperand(il, instr, 2, registerSize)));
@@ -565,13 +782,16 @@ bool GetLowLevelILForInstruction(Architecture* arch, uint64_t addr, LowLevelILFu
 			il.AddInstruction(il.Store(8, GetILOperandMemoryAddress(il, op2, addrSize), ReadILOperand(il, instr, 1, registerSize)));
 			break;
 		case MIPS_SWC1:
-			il.AddInstruction(WriteILOperand(il, instr, 1, addrSize, il.Register(4, REG_COP1)));
+			il.AddInstruction(MoveFromCoprocessor(1, il, 4, LLIL_TEMP(0), op1.immediate, 0));
+			il.AddInstruction(WriteILOperand(il, instr, 1, addrSize, il.Register(4, LLIL_TEMP(0))));
 			break;
 		case MIPS_SWC2:
-			il.AddInstruction(WriteILOperand(il, instr, 1, addrSize, il.Register(4, REG_COP2)));
+			il.AddInstruction(MoveFromCoprocessor(2, il, 4, LLIL_TEMP(0), op1.immediate, 0));
+			il.AddInstruction(WriteILOperand(il, instr, 1, addrSize, il.Register(4, LLIL_TEMP(0))));
 			break;
 		case MIPS_SWC3:
-			il.AddInstruction(WriteILOperand(il, instr, 1, addrSize, il.Register(4, REG_COP3)));
+			il.AddInstruction(MoveFromCoprocessor(3, il, 4, LLIL_TEMP(0), op1.immediate, 0));
+			il.AddInstruction(WriteILOperand(il, instr, 1, addrSize, il.Register(4, LLIL_TEMP(0))));
 			break;
 		case MIPS_SWL:
 			il.AddInstruction(il.Store(2,
@@ -954,7 +1174,6 @@ bool GetLowLevelILForInstruction(Architecture* arch, uint64_t addr, LowLevelILFu
 		case MIPS_DSLV:
 		case MIPS_DSUB:
 		case MIPS_DSUBU:
-		case MIPS_ERET:
 		case MIPS_LDL:
 		case MIPS_LDR:
 		case MIPS_LDXC1:
