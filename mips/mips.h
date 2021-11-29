@@ -563,10 +563,111 @@ namespace mips
 		FPREG_F31,
 		REG_LO,
 		REG_HI,
-		REG_COP0,
-		REG_COP1,
-		REG_COP2,
-		REG_COP3,
+
+		// Standardized coprocessor 0 registers (as of MIPS64 document MD00091 Rev 2.50)
+		// Coprocessor 0 register 0
+		// Register             // Selector
+		REG_INDEX,		// 0
+		REG_MVP_CONTROL,	// 1
+		REG_MVP_CONF0,		// 2
+		REG_MVP_CONF1,		// 3
+		// Coprocessor 0 register 1
+		REG_RANDOM,		// 0
+		REG_VPE_CONTROL,	// 1
+		REG_VPE_CONF0,		// 2
+		REG_VPE_CONF1,		// 3
+		REG_YQ_MASK,		// 4
+		REG_VPE_SCHEDULE,	// 5
+		REG_VPE_SCHE_FBACK,	// 6
+		REG_VPE_OPT,		// 7
+		// Coprocessor 0 register 2
+		REG_ENTRY_LO0,		// 0
+		REG_TC_STATUS,		// 1
+		REG_TC_BIND,		// 2
+		REG_TC_RESTART,		// 3
+		REG_TC_HALT,		// 4
+		REG_TC_CONTEXT,		// 5
+		REG_TC_SCHEDULE,	// 6
+		REG_TC_SCHE_FBACK,	// 7
+		// Coprocessor 0 register 3
+		REG_ENTRY_LO1,		// 0
+		// Coprocessor 0 register 4
+		REG_CONTEXT,		// 0
+		REG_CONTEXT_CONFIG,	// 1
+		// Coprocessor 0 register 5
+		REG_PAGE_MASK,		// 0
+		REG_PAGE_GRAIN,		// 1
+		// Coprocessor 0 register 6
+		REG_WIRED,		// 0
+		REG_SRS_CONF0,		// 1
+		REG_SRS_CONF1,		// 2
+		REG_SRS_CONF2,		// 3
+		REG_SRS_CONF3,		// 4
+		REG_SRS_CONF4,		// 5
+		// Coprocessor 0 register 7
+		REG_HWR_ENA,		// 0
+		// Coprocessor 0 register 8
+		REG_BAD_VADDR,		// 0
+		// Coprocessor 0 register 9
+		REG_COUNT,		// 0
+		// Coprocessor 0 register 10
+		REG_ENTRY_HI,		// 0
+		// Coprocessor 0 register 11
+		REG_COMPARE,		// 0
+		// Coprocessor 0 register 12
+		REG_STATUS,		// 0
+		REG_INT_CTL,		// 1
+		REG_SRS_CTL,		// 2
+		REG_SRS_MAP,		// 3
+		// Coprocessor 0 register 13
+		REG_CAUSE,		// 0
+		// Coprocessor 0 register 14
+		REG_EPC,		// 0
+		// Coprocessor 0 register 15
+		REG_PR_ID,		// 0
+		REG_EBASE,		// 1
+		// Coprocessor 0 register 16
+		REG_CONFIG,		// 0
+		REG_CONFIG1,		// 1
+		REG_CONFIG2,		// 2
+		REG_CONFIG3,		// 3
+		// Coprocessor 0 register 17
+		REG_LLADDR,		// 0
+		// Coprocessor 0 register 18
+		REG_WATCH_LO,		// 0-n
+		// Coprocessor 0 register 19
+		REG_WATCH_HI,		// 0-n
+		// Coprocessor 0 register 20
+		REG_XCONTEXT,		// 0
+		// Coprocessor 0 register 23
+		REG_DEBUG,		// 0
+		REG_TRACE_CONTROL,	// 1
+		REG_TRACE_CONTROL2,	// 2
+		REG_USER_TRACE_DATA,	// 3
+		REG_TRACE_BPC,		// 4
+		// Coprocessor 0 register 24
+		REG_DEPC,		// 0
+		// Coprocessor 0 register 25
+		REG_PERF_CNT,		// 0-n
+		// Coprocessor 0 register 26
+		REG_ERR_CTL,		// 0
+		// Coprocessor 0 register 27
+		REG_CACHE_ERR0,		// 0
+		REG_CACHE_ERR1,		// 1
+		REG_CACHE_ERR2,		// 2
+		REG_CACHE_ERR3,		// 3
+		// Coprocessor 0 register 28
+		REG_TAG_LO,		// even selects
+		REG_DATA_LO,		// odd selects
+		// Coprocessor 0 register 29
+		REG_TAG_HI,		// even selects
+		REG_DATA_HI,		// odd selects
+		// Coprocessor 0 register 30
+		REG_ERROR_EPC,		// 0
+		// Coprocessor 0 register 31
+		REG_DESAVE,		// 0
+
+		// Last valid register
 		END_REG
 	};
 
