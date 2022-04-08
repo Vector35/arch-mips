@@ -1838,7 +1838,7 @@ uint32_t mips_disassemble(
 				if (instruction->operands[i].immediate >= 0x80000000)
 					sprintf(operandPtr, "-%#x", -(int32_t)instruction->operands[i].immediate);
 				else
-					sprintf(operandPtr, "%#x", instruction->operands[i].immediate);
+					sprintf(operandPtr, "%#llx", instruction->operands[i].immediate);
 				break;
 			case MEM_IMM:
 				if (instruction->operands[i].immediate != 0)

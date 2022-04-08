@@ -41,7 +41,6 @@ int disassemble(uint32_t insword, uint64_t address, enum MipsVersion version, ch
 
 int main(int ac, char **av)
 {
-	int rc;
 	char instxt[4096];
 
 	if(ac == 1) {
@@ -64,8 +63,8 @@ int main(int ac, char **av)
 		exit(0);
 	}
 
-	uint64_t address;
-	uint32_t insword;
+	uint64_t address = 0;
+	uint32_t insword = 0;
 	if(ac == 2) {
 		address = 0;
 		insword = strtoul(av[1], NULL, 16);
@@ -76,6 +75,6 @@ int main(int ac, char **av)
 	}
 
 	if(0 == disassemble(insword, address, MIPS_32, instxt)) {
-		printf("%08X: %08X %s\n", address, insword, instxt);
+		printf("%08llX: %08X %s\n", address, insword, instxt);
 	}
 }
