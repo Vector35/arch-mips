@@ -1851,7 +1851,7 @@ uint32_t mips_disassemble(
 					}
 					else
 					{
-						sprintf(operandPtr, "%#x(%s)",
+						sprintf(operandPtr, "%#llx(%s)",
 							instruction->operands[i].immediate,
 							RegisterStrings[instruction->operands[i].reg]);
 					}
