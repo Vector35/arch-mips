@@ -182,7 +182,7 @@ protected:
 		return m_bits / 8;
 	}
 
-	bool InstructionHasBranchDelay(const Instruction& instr)
+	size_t InstructionHasBranchDelay(const Instruction& instr)
 	{
 		switch (instr.operation)
 		{
@@ -219,9 +219,9 @@ protected:
 			case MIPS_BC2TL:
 			case MIPS_BC2F:
 			case MIPS_BC2T:
-				return true;
+				return 1;
 			default:
-				return false;
+				return 0;
 		}
 	}
 
@@ -276,7 +276,7 @@ protected:
 	{
 		result.length = 4;
 
-		bool hasBranchDelay = InstructionHasBranchDelay(instr);
+		auto hasBranchDelay = InstructionHasBranchDelay(instr);
 
 		switch (instr.operation)
 		{
@@ -287,7 +287,7 @@ protected:
 			if (instr.operands[0].immediate != addr + 8)
 				result.AddBranch(CallDestination, instr.operands[0].immediate, nullptr, hasBranchDelay);
 			else
-				result.branchDelay = true; // We have a "get pc" mnemonic; do nothing
+				result.branchDelay = 1; // We have a "get pc" mnemonic; do nothing
 			break;
 
 		case MIPS_JAL:
@@ -297,7 +297,7 @@ protected:
 		//Jmp to register register value is unknown
 		case MIPS_JALR:
 		case MIPS_JALR_HB:
-			result.branchDelay = true;
+			result.branchDelay = 1;
 			break;
 
 		case MIPS_BGEZAL:
@@ -463,7 +463,7 @@ public:
 			return false;
 		}
 
-		if (InstructionHasBranchDelay(instr))
+		if (InstructionHasBranchDelay(instr) == 1)
 		{
 			if (len < 8)
 			{
