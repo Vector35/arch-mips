@@ -1567,11 +1567,6 @@ extern "C"
 		mipsel->RegisterCallingConvention(linuxSyscallLE);
 		mipseb->RegisterCallingConvention(linuxSyscallBE);
 
-		mipsel->SetBinaryViewTypeConstant("ELF", "R_COPY", 126);
-		mipsel->SetBinaryViewTypeConstant("ELF", "R_JUMP_SLOT", 127);
-		mipseb->SetBinaryViewTypeConstant("ELF", "R_COPY", 126);
-		mipseb->SetBinaryViewTypeConstant("ELF", "R_JUMP_SLOT", 127);
-
 		mipsel->RegisterFunctionRecognizer(new MipsImportedFunctionRecognizer());
 		mipseb->RegisterFunctionRecognizer(new MipsImportedFunctionRecognizer());
 
