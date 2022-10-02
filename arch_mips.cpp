@@ -542,7 +542,7 @@ public:
 					// to be correct in the general case. also, it uses LLIL_TEMP(1) for the simple reason
 					// that the mips lifter only uses LLIL_TEMP(0) at the moment.
 					LowLevelILInstruction lifted = il.GetInstruction(instrIdx);
-					if ((lifted.operation == LLIL_IF) && (lifted.address == addr))
+					if ((lifted.operation == LLIL_IF || lifted.operation == LLIL_CALL) && (lifted.address == addr))
 					{
 						bool replace = false;
 
