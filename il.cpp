@@ -695,8 +695,36 @@ bool GetLowLevelILForInstruction(Architecture* arch, uint64_t addr, LowLevelILFu
 							il.Register(4, op1.reg))));
 			break;
 		case MIPS_MADD:
+			il.AddInstruction(il.SetRegister(8, LLIL_TEMP(0),
+						il.MultDoublePrecSigned(8,
+							ReadILOperand(il, instr, 1, registerSize, 4),
+							ReadILOperand(il, instr, 2, registerSize, 4))));
+			il.AddInstruction(il.SetRegister(4, REG_LO,
+						il.Add(4,
+							il.Register(4, REG_LO),
+							il.LowPart(4, il.Register(8, LLIL_TEMP(0))))));
+			il.AddInstruction(il.SetRegister(4, REG_HI,
+						il.Add(4,
+							il.Register(4, REG_HI),
+							il.LogicalShiftRight(4,
+								il.Register(8, LLIL_TEMP(0)),
+								il.Const(1, 16)))));
+			break;
 		case MIPS_MADDU:
-			il.AddInstruction(il.Unimplemented());
+			il.AddInstruction(il.SetRegister(8, LLIL_TEMP(0),
+						il.MultDoublePrecUnsigned(8,
+							ReadILOperand(il, instr, 1, registerSize, 4),
+							ReadILOperand(il, instr, 2, registerSize, 4))));
+			il.AddInstruction(il.SetRegister(4, REG_LO,
+						il.Add(4,
+							il.Register(4, REG_LO),
+							il.LowPart(4, il.Register(8, LLIL_TEMP(0))))));
+			il.AddInstruction(il.SetRegister(4, REG_HI,
+						il.Add(4,
+							il.Register(4, REG_HI),
+							il.LogicalShiftRight(4,
+								il.Register(8, LLIL_TEMP(0)),
+								il.Const(1, 16)))));
 			break;
 		case MIPS_ROTR:
 		case MIPS_ROTRV:
