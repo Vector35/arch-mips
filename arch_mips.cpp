@@ -687,18 +687,18 @@ public:
 			{
 			case IMM:
 				if (imm < -9)
-					sprintf(operand, "-%#x", -imm);
+					snprintf(operand, sizeof(operand), "-%#x", -imm);
 				else if (imm < 0)
-					sprintf(operand, "-%d", -imm);
+					snprintf(operand, sizeof(operand), "-%d", -imm);
 				else if (imm < 10)
-					sprintf(operand, "%d", imm);
+					snprintf(operand, sizeof(operand), "%d", imm);
 				else
-					sprintf(operand, "%#x", imm);
+					snprintf(operand, sizeof(operand), "%#x", imm);
 
 				result.emplace_back(IntegerToken, operand, imm);
 				break;
 			case LABEL:
-				sprintf(operand, "%#x", imm);
+				snprintf(operand, sizeof(operand), "%#x", imm);
 				result.emplace_back(PossibleAddressToken, operand, imm);
 				break;
 			case REG:
@@ -730,13 +730,13 @@ public:
 				if (imm != 0)
 				{
 					if (imm < -9)
-						sprintf(operand, "-%#x", -imm);
+						snprintf(operand, sizeof(operand), "-%#x", -imm);
 					else if (imm < 0)
-						sprintf(operand, "-%d", -imm);
+						snprintf(operand, sizeof(operand), "-%d", -imm);
 					else if (imm < 10)
-						sprintf(operand, "%d", imm);
+						snprintf(operand, sizeof(operand), "%d", imm);
 					else
-						sprintf(operand, "%#x", imm);
+						snprintf(operand, sizeof(operand), "%#x", imm);
 					result.emplace_back(IntegerToken, operand, imm);
 				}
 				if (instr.operands[i].reg == REG_ZERO)

@@ -1836,33 +1836,33 @@ uint32_t mips_disassemble(
 			case IMM:
 			case LABEL:
 				if (instruction->operands[i].immediate >= 0x80000000)
-					sprintf(operandPtr, "-%#x", -(int32_t)instruction->operands[i].immediate);
+					snprintf(operandPtr, 64, "-%#x", -(int32_t)instruction->operands[i].immediate);
 				else
-					sprintf(operandPtr, "%#llx", instruction->operands[i].immediate);
+					snprintf(operandPtr, 64, "%#llx", instruction->operands[i].immediate);
 				break;
 			case MEM_IMM:
 				if (instruction->operands[i].immediate != 0)
 				{
 					if (instruction->operands[i].immediate >= 0x80000000)
 					{
-						sprintf(operandPtr, "-%#x(%s)",
+						snprintf(operandPtr, 64, "-%#x(%s)",
 							-(int32_t)instruction->operands[i].immediate,
 							RegisterStrings[instruction->operands[i].reg]);
 					}
 					else
 					{
-						sprintf(operandPtr, "%#llx(%s)",
+						snprintf(operandPtr, 64, "%#llx(%s)",
 							instruction->operands[i].immediate,
 							RegisterStrings[instruction->operands[i].reg]);
 					}
 				}
 				else
 				{
-					sprintf(operandPtr, "(%s)", RegisterStrings[instruction->operands[i].reg]);
+					snprintf(operandPtr, 64, "(%s)", RegisterStrings[instruction->operands[i].reg]);
 				}
 				break;
 			case MEM_REG:
-				sprintf(operandPtr, "%s(%s)",
+				snprintf(operandPtr, 64, "%s(%s)",
 					RegisterStrings[instruction->operands[i].immediate],
 					RegisterStrings[instruction->operands[i].reg]);
 				break;
