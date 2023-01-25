@@ -1542,6 +1542,14 @@ extern "C"
 {
 	BN_DECLARE_CORE_ABI_VERSION
 
+#ifndef DEMO_VERSION
+	BINARYNINJAPLUGIN void CorePluginDependencies()
+	{
+		AddOptionalPluginDependency("view_elf");
+		AddOptionalPluginDependency("view_pe");
+	}
+#endif
+
 	BINARYNINJAPLUGIN bool CorePluginInit()
 	{
 		Architecture* mipsel = new MipsArchitecture("mipsel32", LittleEndian, 32);
