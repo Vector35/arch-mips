@@ -754,7 +754,8 @@ namespace mips
 				Instruction* restrict instruction,
 				MipsVersion version,
 				uint64_t address,
-				uint32_t bigEndian);
+				uint32_t bigEndian,
+				uint32_t enablePseudoOps);
 
 		//Get a text representation of the decomposed instruction
 		//into outBuffer

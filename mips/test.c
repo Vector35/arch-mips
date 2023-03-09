@@ -17,7 +17,7 @@ int disassemble(uint32_t insword, uint64_t address, enum MipsVersion version, ch
 	uint32_t bigendian = 0;
 
 	memset(&instr, 0, sizeof(instr));
-	rc = mips_decompose(&insword, 4, &instr, version, address, bigendian);
+	rc = mips_decompose(&insword, 4, &instr, version, address, bigendian, 1);
 	if(rc) {
 		printf("ERROR: mips_decompose() returned %d\n", rc);
 		return rc;
