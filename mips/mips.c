@@ -1888,7 +1888,8 @@ uint32_t mips_decompose(
 		Instruction* restrict instruction,
 		uint32_t version,
 		uint64_t address,
-		uint32_t endianBig)
+		uint32_t endianBig,
+		uint32_t enablePseudoOps)
 {
 	combined ins;
 	if (instructionValue == NULL)
@@ -1904,7 +1905,7 @@ uint32_t mips_decompose(
 		return result;
 	instruction->size = 4;
 	//look for peudoinstructions by disassembling the next instruction too
-	if (size >= 8)
+	if (enablePseudoOps != 0 && size >= 8)
 	{
 		if (endianBig == 1)
 			ins.value = bswap32(instructionValue[1]);

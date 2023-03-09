@@ -167,11 +167,12 @@ class MipsArchitecture: public Architecture
 protected:
 	size_t m_bits;
 	BNEndianness m_endian;
+	uint32_t m_enablePseudoOps;
 
 	virtual bool Disassemble(const uint8_t* data, uint64_t addr, size_t maxLen, Instruction& result)
 	{
 		memset(&result, 0, sizeof(result));
-		if (mips_decompose((uint32_t*)data, maxLen,  &result, m_bits == 64 ? MIPS_64 : MIPS_32, addr, m_endian) != 0)
+		if (mips_decompose((uint32_t*)data, maxLen,  &result, m_bits == 64 ? MIPS_64 : MIPS_32, addr, m_endian, m_enablePseudoOps) != 0)
 			return false;
 		return true;
 	}
@@ -365,6 +366,8 @@ protected:
 public:
 	MipsArchitecture(const std::string& name, BNEndianness endian, size_t bits): Architecture(name), m_bits(bits), m_endian(endian)
 	{
+		Ref<Settings> settings = Settings::Instance();
+		m_enablePseudoOps = settings->Get<bool>("arch.mips.disassembly.pseudo_ops") ? 1 : 0;
 	}
 
 	virtual BNEndianness GetEndianness() const override
@@ -1382,7 +1385,7 @@ public:
 				uint32_t inst2 = *(uint32_t*)(cur->relocationDataCache);
 				Instruction instruction;
 				memset(&instruction, 0, sizeof(instruction));
-				if (mips_decompose(&inst2, sizeof(uint32_t), &instruction, MIPS_32, cur->address, arch->GetEndianness()))
+				if (mips_decompose(&inst2, sizeof(uint32_t), &instruction, MIPS_32, cur->address, arch->GetEndianness(), 1))
 					break;
 
 				int32_t immediate = swap(inst2) & 0xffff;
@@ -1538,6 +1541,19 @@ public:
 	}
 };
 
+static void InitMipsSettings()
+{
+	Ref<Settings> settings = Settings::Instance();
+
+	settings->RegisterSetting("arch.mips.disassembly.pseudo_ops",
+			R"({
+			"title" : "MIPS Disassembly Pseudo-Op",
+			"type" : "boolean",
+			"default" : true,
+			"description" : "Enable use of pseudo-op instructions in MIPS disassembly."
+			})");
+}
+
 extern "C"
 {
 	BN_DECLARE_CORE_ABI_VERSION
@@ -1552,6 +1568,8 @@ extern "C"
 
 	BINARYNINJAPLUGIN bool CorePluginInit()
 	{
+		InitMipsSettings();
+
 		Architecture* mipsel = new MipsArchitecture("mipsel32", LittleEndian, 32);
 		Architecture* mipseb = new MipsArchitecture("mips32", BigEndian, 32);
 		Architecture* mips64eb = new MipsArchitecture("mips64", BigEndian, 64);
