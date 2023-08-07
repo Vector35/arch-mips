@@ -1739,26 +1739,16 @@ public:
 
 	virtual bool ApplyRelocation(Ref<BinaryView> view, Ref<Architecture> arch, Ref<Relocation> reloc, uint8_t* dest, size_t len) override
 	{
-		/*
-			A   - Represents the addend used to compute the value of the relocatable field.
-			AHL - Identifies another type of addend used to compute the value of the relocatable field. See the note below for more detail.
-			P   - Represents the place (section offset or address) of the storage unit being relocated (computed using r_offset).
-			S   - Represents the value of the symbol whose index resides in the relocation entry, unless the the symbol is STB_LOCAL and is of type STT_SECTION in which case S represents the original sh_addr minus the final sh_addr.
-			G   - Represents the offset into the global offset table at which the address of the relocation entry symbol resides during execution. See ‘‘Coding Examples’’ in Chapter 3 and ‘‘Global Offset Table’’ in Chapter 5 for more information.
-			GP  - Represents the final gp value to be used for the relocatable, executable, or shared object file being produced.
-			GP0 - Represents the gp value used to create the relocatable object.
-			EA  - Represents the effective address of the symbol prior to relocation.
-			L   - Represents the .lit4 or .lit8 literal table offset. Prior to relocation the addend field of a literal reference contains the offset into the global data area. During relocation, each literal section from each contributing file is merged and sorted, after which duplicate entries are removed and the section compressed, leaving only unique entries. The relocation factor L is the mapping from the old offset of the original gp to the value of gp used in the final file.
-		*/
-
 		if (len < 4)
 			return false;
 		// All ELF MIPS relocations are implicitAddend
 		auto info = reloc->GetInfo();
 		auto addr = reloc->GetAddress();
+		auto symbol = reloc->GetSymbol();
+		uint64_t target = reloc->GetTarget();
+
 		uint32_t* dest32 = (uint32_t*)dest;
 		auto swap = [&arch](uint32_t x) { return (arch->GetEndianness() == LittleEndian)? x : bswap32(x); };
-		uint64_t target = reloc->GetTarget();
 		uint32_t inst = swap(dest32[0]);
 		switch (info.nativeType)
 		{
@@ -1836,14 +1826,11 @@ public:
 			dest32[0] = swap((inst & ~0xffff) | (vRel16 & 0xffff));
 			break;
 		}
-		// R_MIPS_REL32 3 T–word32 external A – EA + S
-		// R_MIPS_REL32 3 T–word32 local A – EA + S
 		case R_MIPS_REL32:
 		{
-			uint32_t A = inst;
-			uint32_t S = (uint32_t)target;
-			uint32_t EA = (uint32_t)addr;
-			dest32[0] = swap(A - EA + S);
+			uint32_t originalValue = inst;
+			uint64_t displacement = target;
+			dest32[0] = swap((uint32_t)(originalValue + displacement));
 			break;
 		}
 		default:
@@ -1914,9 +1901,22 @@ public:
 			}
 			case R_MIPS_32:
 				break;
+
+			case R_MIPS_REL32:
+				/* elfview delivers relocs on a symbol's GOT entry with symbolIndex populated */
+				if (result[i].symbolIndex)
+				{
+					/* UNSUPPORTED! need a binary with R_MIPS_REL32 on GOT entry to test */
+					while(0);
+				}
+				else
+				{
+					break;
+				}
 			default:
 				result[i].type = UnhandledRelocation;
-				LogWarn("Unsupported relocation type: %s", GetRelocationString((ElfMipsRelocationType)result[i].nativeType));
+				LogWarn("Unsupported relocation type: %llu (%s) @0x%llX", result[i].nativeType,
+					GetRelocationString((ElfMipsRelocationType)result[i].nativeType), result[i].address);
 			}
 		}
 		return true;
