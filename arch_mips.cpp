@@ -2009,9 +2009,17 @@ extern "C"
 
 		// Register the architectures with the binary format parsers so that they know when to use
 		// these architectures for disassembling an executable file
-		BinaryViewType::RegisterArchitecture("ELF", 0x08, BigEndian, mips64eb);
-		BinaryViewType::RegisterArchitecture("ELF", 0x08, LittleEndian, mipsel);
-		BinaryViewType::RegisterArchitecture("ELF", 0x08, BigEndian, mipseb);
+
+		/* since elfXX_hdr.e_machine == EM_MIPS (8) on both mips and mips64, we adopt the following
+		   convention to disambiguate: shift in elf64_hdr.e_ident[EI_CLASS]: */
+		#define EM_MIPS (8)
+		#define EI_CLASS_32 (1)
+		#define EI_CLASS_64 (2)
+		#define ARCH_ID_MIPS32 ((EI_CLASS_32<<16)|EM_MIPS) /* 0x10008 */
+		#define ARCH_ID_MIPS64 ((EI_CLASS_64<<16)|EM_MIPS) /* 0x20008 */
+		BinaryViewType::RegisterArchitecture("ELF", ARCH_ID_MIPS64, BigEndian, mips64eb);
+		BinaryViewType::RegisterArchitecture("ELF", ARCH_ID_MIPS32, LittleEndian, mipsel);
+		BinaryViewType::RegisterArchitecture("ELF", ARCH_ID_MIPS32, BigEndian, mipseb);
 		BinaryViewType::RegisterArchitecture("PE", 0x166, LittleEndian, mipsel);
 		return true;
 	}
