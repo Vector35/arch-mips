@@ -1595,6 +1595,32 @@ public:
 	}
 };
 
+class MipsLinuxRtlResolveCallingConvention: public CallingConvention
+{
+public:
+	MipsLinuxRtlResolveCallingConvention(Architecture* arch): CallingConvention(arch, "linux-rtlresolve")
+	{
+	}
+
+	virtual vector<uint32_t> GetIntegerArgumentRegisters() override
+	{
+		return vector<uint32_t>{
+			REG_T7, /* return address of caller of PLT stub */
+			REG_T8 /* symbol index */
+		};
+	}
+
+	virtual uint32_t GetIntegerReturnValueRegister() override
+	{
+		return REG_T0;
+	}
+
+	virtual bool IsEligibleForHeuristics() override
+	{
+		return false;
+	}
+};
+
 class MipsImportedFunctionRecognizer: public FunctionRecognizer
 {
 private:
@@ -1986,9 +2012,11 @@ extern "C"
 		Architecture::Register(mipseb);
 		Architecture::Register(mips64eb);
 
+		/* calling conventions */
 		MipsO32CallingConvention* o32LE = new MipsO32CallingConvention(mipsel);
 		MipsO32CallingConvention* o32BE = new MipsO32CallingConvention(mipseb);
 		MipsN64CallingConvention* n64BE = new MipsN64CallingConvention(mips64eb);
+
 		mipsel->RegisterCallingConvention(o32LE);
 		mipseb->RegisterCallingConvention(o32BE);
 		mipsel->SetDefaultCallingConvention(o32LE);
@@ -2001,6 +2029,12 @@ extern "C"
 		mipsel->RegisterCallingConvention(linuxSyscallLE);
 		mipseb->RegisterCallingConvention(linuxSyscallBE);
 
+		MipsLinuxRtlResolveCallingConvention* mlrccLE = new MipsLinuxRtlResolveCallingConvention(mipsel);
+		MipsLinuxRtlResolveCallingConvention* mlrccBE = new MipsLinuxRtlResolveCallingConvention(mipseb);
+		mipsel->RegisterCallingConvention(mlrccLE);
+		mipseb->RegisterCallingConvention(mlrccBE);
+
+		/* function recognizers */
 		mipsel->RegisterFunctionRecognizer(new MipsImportedFunctionRecognizer());
 		mipseb->RegisterFunctionRecognizer(new MipsImportedFunctionRecognizer());
 
