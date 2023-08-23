@@ -1624,15 +1624,14 @@ public:
 class MipsImportedFunctionRecognizer: public FunctionRecognizer
 {
 private:
-	bool RecognizeELFPLTEntries(BinaryView* data, Function* func, LowLevelILFunction* il)
+	bool RecognizeELFPLTEntries0(BinaryView* data, Function* func, LowLevelILFunction* il)
 	{
-		// Look for the folloiwng code pattern:
+		// Look for the following code pattern:
 		// $t7 = got_hi
 		// $t9 = [$t7 + got_lo].d
 		// $t8 = $t7 + got_lo
 		// OPTIONAL: $t7 = got_hi
 		// tailcall($t9)
-
 		if (il->GetInstructionCount() < 4)
 			return false;
 		if (il->GetInstructionCount() > 5)
@@ -1737,10 +1736,93 @@ private:
 		func->ApplyImportedTypes(funcSym);
 		return true;
 	}
+
+
+	bool RecognizeELFPLTEntries1(BinaryView* data, Function* func, LowLevelILFunction* il)
+	{
+		LowLevelILInstruction tmp, left, right;
+
+		// Look for the following code pattern:
+		// 0: $t9 = [$gp - ????]	// get to base of GOT
+		// 1: $t7 = $ra				// transmit address so RTLD!service_stub() can return to caller
+		// 2: $t8 = ??				// transmit symbol index to RTLD!service_stub()
+		// 3: call($t9)				// call RTLD!service_stub()
+		// 4: tailcall(??)
+		if (il->GetInstructionCount() != 5)
+			return false;
+
+		// test instruction0
+		tmp = il->GetInstruction(0); // $t9 = ...
+		if (tmp.operation != LLIL_SET_REG) return false;
+		tmp = tmp.GetSourceExpr<LLIL_SET_REG>(); // [$gp - ????]
+		if (tmp.operation != LLIL_LOAD) return false;
+		tmp = tmp.GetSourceExpr<LLIL_LOAD>(); // $gp - ????
+		if (tmp.operation != LLIL_SUB) return false;
+		auto value = il->GetExprValue(tmp); // accept if Binja has resolved to a value
+		//if (value.state != ConstantValue) return false;
+		//uint64_t got_base = value.value;
+
+		// test instruction1
+		tmp = il->GetInstruction(1); // $t7 = $ra
+		if (tmp.operation != LLIL_SET_REG) return false;
+		if (tmp.GetDestRegister<LLIL_SET_REG>() != REG_T7) return false; // $t7
+		tmp = tmp.GetSourceExpr<LLIL_SET_REG>(); // $ra
+		if (tmp.operation != LLIL_REG) return false;
+		if (tmp.GetSourceRegister<LLIL_REG>() != REG_RA) return false;
+
+		// test instruction2
+		tmp = il->GetInstruction(2); // $t8 = ????
+		if (tmp.operation != LLIL_SET_REG) return false;
+		tmp = tmp.GetSourceExpr<LLIL_SET_REG>(); // ????
+		value = il->GetExprValue(tmp); // accept if Binja has resolved to a value
+		if (value.state != ConstantValue) return false;
+		int sym_index = value.value;
+
+		// test instruction3
+		tmp = il->GetInstruction(3); // call($t9)
+		if (tmp.operation != LLIL_CALL) return false;
+		tmp = tmp.GetDestExpr<LLIL_CALL>(); // ????
+		if (tmp.GetSourceRegister<LLIL_REG>() != REG_T9) return false;
+
+		// test instruction4
+		tmp = il->GetInstruction(4); // tailcall(??)
+		if (tmp.operation != LLIL_TAILCALL) return false;
+
+		// There should be three symbols:
+		// 1. ImportedFunctionSymbol has address of the PLT stub (where we are now)
+		// 2. ImportAddressSymbol has address of corresponding GOT entry
+		// 3. ExternalSymbol has address of corresponding address in .extern
+		//
+		// We need to locate #3, resolve its type, and apply it to #1
+		Ref<Symbol> pltSym = data->GetSymbolByAddress(func->GetStart());
+
+		if (pltSym)
+		{
+			for (auto& extSym : data->GetSymbolsByName(pltSym->GetRawName()))
+			{
+				if (extSym->GetType() == ExternalSymbol)
+				{
+					DataVariable var;
+					if (data->GetDataVariableAtAddress(extSym->GetAddress(), var))
+					{
+						func->ApplyImportedTypes(pltSym, var.type);
+					}
+
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
 public:
 	virtual bool RecognizeLowLevelIL(BinaryView* data, Function* func, LowLevelILFunction* il) override
 	{
-		if (RecognizeELFPLTEntries(data, func, il))
+		if (RecognizeELFPLTEntries0(data, func, il))
+			return true;
+
+		if (RecognizeELFPLTEntries1(data, func, il))
 			return true;
 
 		return false;
