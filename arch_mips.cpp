@@ -372,7 +372,7 @@ public:
 	MipsArchitecture(const std::string& name, BNEndianness endian, size_t bits): Architecture(name), m_bits(bits), m_endian(endian)
 	{
 		Ref<Settings> settings = Settings::Instance();
-		m_enablePseudoOps = settings->Get<bool>("arch.mips.disassembly.pseudo_ops") ? 1 : 0;
+		m_enablePseudoOps = settings->Get<bool>("arch.mips.disassembly.pseudoOps") ? 1 : 0;
 	}
 
 	virtual BNEndianness GetEndianness() const override
@@ -2061,7 +2061,7 @@ static void InitMipsSettings()
 {
 	Ref<Settings> settings = Settings::Instance();
 
-	settings->RegisterSetting("arch.mips.disassembly.pseudo_ops",
+	settings->RegisterSetting("arch.mips.disassembly.pseudoOps",
 			R"({
 			"title" : "MIPS Disassembly Pseudo-Op",
 			"type" : "boolean",
