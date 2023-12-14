@@ -27,6 +27,18 @@ uint32_t bswap32(uint32_t x)
 		((x >> 24) & 0x000000ff );
 }
 
+uint64_t bswap64(uint64_t x)
+{
+	return	((x << 56) & 0xff00000000000000UL) |
+		((x << 40) & 0x00ff000000000000UL) |
+		((x << 24) & 0x0000ff0000000000UL) |
+		((x <<  8) & 0x000000ff00000000UL) |
+		((x >>  8) & 0x00000000ff000000UL) |
+		((x >> 24) & 0x0000000000ff0000UL) |
+		((x >> 40) & 0x000000000000ff00UL) |
+		((x >> 56) & 0x00000000000000ffUL);
+}
+
 enum ElfMipsRelocationType : uint32_t
 {
 	R_MIPS_NONE           = 0,
@@ -90,6 +102,7 @@ enum ElfMipsRelocationType : uint32_t
 
 	// This range is reserved for vendor specific relocations.
 	R_MIPS_LOVENDOR  =  100,
+	R_MIPS64_COPY    =  125,
 	R_MIPS_COPY      =  126,
 	R_MIPS_JUMP_SLOT =  127,
 	R_MIPS_HIVENDOR  =  127
@@ -152,6 +165,7 @@ static const char* GetRelocationString(ElfMipsRelocationType rel)
 		{ R_MIPS_TLS_TPREL_LO16, "R_MIPS_TLS_TPREL_LO16"},
 		{ R_MIPS_GLOB_DAT, "R_MIPS_GLOB_DAT"},
 		{ R_MIPS_LOVENDOR, "R_MIPS_LOVENDOR"},
+		{ R_MIPS64_COPY, "R_MIPS64_COPY"},
 		{ R_MIPS_COPY, "R_MIPS_COPY"},
 		{ R_MIPS_JUMP_SLOT, "R_MIPS_JUMP_SLOT"},
 		{ R_MIPS_HIVENDOR, "R_MIPS_HIVENDOR"}
@@ -1776,7 +1790,6 @@ private:
 		tmp = tmp.GetSourceExpr<LLIL_SET_REG>(); // ????
 		value = il->GetExprValue(tmp); // accept if Binja has resolved to a value
 		if (value.state != ConstantValue) return false;
-		int sym_index = value.value;
 
 		// test instruction3
 		tmp = il->GetInstruction(3); // call($t9)
@@ -1856,16 +1869,25 @@ public:
 		uint64_t target = reloc->GetTarget();
 
 		uint32_t* dest32 = (uint32_t*)dest;
+		uint64_t* dest64 = (uint64_t*)dest;
 		auto swap = [&arch](uint32_t x) { return (arch->GetEndianness() == LittleEndian)? x : bswap32(x); };
+		auto swap64 = [&arch](uint64_t x) { return (arch->GetEndianness() == LittleEndian)? x : bswap64(x); };
 		uint32_t inst = swap(dest32[0]);
+		uint64_t inst64 = swap64(dest64[0]);
 		switch (info.nativeType)
 		{
 		case R_MIPS_JUMP_SLOT:
 		case R_MIPS_COPY:
 			dest32[0] = swap((uint32_t)target);
 			break;
+		case R_MIPS64_COPY:
+			dest64[0] = swap64(target);
+			break;
 		case R_MIPS_32:
 			dest32[0] = swap((uint32_t)(inst + target));
+			break;
+		case R_MIPS_64:
+			dest64[0] = swap64(inst64 + target);
 			break;
 		case R_MIPS_HI16:
 		{
@@ -1963,6 +1985,7 @@ public:
 				result[i].type = IgnoredRelocation;
 				break;
 			case R_MIPS_COPY:
+			case R_MIPS64_COPY:
 				result[i].type = ELFCopyRelocationType;
 				break;
 			case R_MIPS_JUMP_SLOT:
@@ -2008,6 +2031,7 @@ public:
 				break;
 			}
 			case R_MIPS_32:
+			case R_MIPS_64:
 				break;
 
 			case R_MIPS_REL32:
@@ -2111,10 +2135,9 @@ extern "C"
 		mipsel->RegisterCallingConvention(linuxSyscallLE);
 		mipseb->RegisterCallingConvention(linuxSyscallBE);
 
-		MipsLinuxRtlResolveCallingConvention* mlrccLE = new MipsLinuxRtlResolveCallingConvention(mipsel);
-		MipsLinuxRtlResolveCallingConvention* mlrccBE = new MipsLinuxRtlResolveCallingConvention(mipseb);
-		mipsel->RegisterCallingConvention(mlrccLE);
-		mipseb->RegisterCallingConvention(mlrccBE);
+		mipsel->RegisterCallingConvention(new MipsLinuxRtlResolveCallingConvention(mipsel));
+		mipseb->RegisterCallingConvention(new MipsLinuxRtlResolveCallingConvention(mipseb));
+		mips64eb->RegisterCallingConvention(new MipsLinuxRtlResolveCallingConvention(mips64eb));
 
 		/* function recognizers */
 		mipsel->RegisterFunctionRecognizer(new MipsImportedFunctionRecognizer());
@@ -2122,6 +2145,7 @@ extern "C"
 
 		mipsel->RegisterRelocationHandler("ELF", new MipsElfRelocationHandler());
 		mipseb->RegisterRelocationHandler("ELF", new MipsElfRelocationHandler());
+		mips64eb->RegisterRelocationHandler("ELF", new MipsElfRelocationHandler());
 
 		// Register the architectures with the binary format parsers so that they know when to use
 		// these architectures for disassembling an executable file
