@@ -179,6 +179,7 @@ static const char* GetRelocationString(ElfMipsRelocationType rel)
 class MipsArchitecture: public Architecture
 {
 protected:
+	MipsVersion m_version;
 	size_t m_bits;
 	BNEndianness m_endian;
 	uint32_t m_enablePseudoOps;
@@ -186,7 +187,7 @@ protected:
 	virtual bool Disassemble(const uint8_t* data, uint64_t addr, size_t maxLen, Instruction& result)
 	{
 		memset(&result, 0, sizeof(result));
-		if (mips_decompose((uint32_t*)data, maxLen,  &result, m_bits == 64 ? MIPS_64 : MIPS_32, addr, m_endian, m_enablePseudoOps) != 0)
+		if (mips_decompose((uint32_t*)data, maxLen,  &result, m_version, addr, m_endian, m_enablePseudoOps) != 0)
 			return false;
 		return true;
 	}
@@ -383,7 +384,8 @@ protected:
 	}
 
 public:
-	MipsArchitecture(const std::string& name, BNEndianness endian, size_t bits): Architecture(name), m_bits(bits), m_endian(endian)
+	MipsArchitecture(const std::string& name, MipsVersion version, BNEndianness endian, size_t bits): Architecture(name),
+		m_version(version), m_bits(bits), m_endian(endian)
 	{
 		Ref<Settings> settings = Settings::Instance();
 		m_enablePseudoOps = settings->Get<bool>("arch.mips.disassembly.pseudoOps") ? 1 : 0;
@@ -1903,7 +1905,8 @@ public:
 				uint32_t inst2 = *(uint32_t*)(cur->relocationDataCache);
 				Instruction instruction;
 				memset(&instruction, 0, sizeof(instruction));
-				if (mips_decompose(&inst2, sizeof(uint32_t), &instruction, MIPS_32, cur->address, arch->GetEndianness(), 1))
+				bool isr5900 = arch->GetName().substr(0, 5) == "r5900";
+				if (mips_decompose(&inst2, sizeof(uint32_t), &instruction, isr5900 ? MIPS_R5900 : MIPS_32, cur->address, arch->GetEndianness(), 1))
 					break;
 
 				int32_t immediate = swap(inst2) & 0xffff;
@@ -2110,11 +2113,15 @@ extern "C"
 	{
 		InitMipsSettings();
 
-		Architecture* mipsel = new MipsArchitecture("mipsel32", LittleEndian, 32);
-		Architecture* mipseb = new MipsArchitecture("mips32", BigEndian, 32);
-		Architecture* mips64eb = new MipsArchitecture("mips64", BigEndian, 64);
+		Architecture* mipsel = new MipsArchitecture("mipsel32", MIPS_32, LittleEndian, 32);
+		Architecture* r5900l = new MipsArchitecture("r5900l", MIPS_R5900, LittleEndian, 32);
+		Architecture* r5900b = new MipsArchitecture("r5900b", MIPS_R5900, BigEndian, 32);
+		Architecture* mipseb = new MipsArchitecture("mips32", MIPS_32, BigEndian, 32);
+		Architecture* mips64eb = new MipsArchitecture("mips64", MIPS_64, BigEndian, 64);
 
 		Architecture::Register(mipsel);
+		Architecture::Register(r5900l);
+		Architecture::Register(r5900b);
 		Architecture::Register(mipseb);
 		Architecture::Register(mips64eb);
 
@@ -2124,27 +2131,41 @@ extern "C"
 		MipsN64CallingConvention* n64BE = new MipsN64CallingConvention(mips64eb);
 
 		mipsel->RegisterCallingConvention(o32LE);
+		r5900l->RegisterCallingConvention(o32LE);
 		mipseb->RegisterCallingConvention(o32BE);
+		r5900b->RegisterCallingConvention(o32BE);
 		mipsel->SetDefaultCallingConvention(o32LE);
+		r5900l->SetDefaultCallingConvention(o32LE);
 		mipseb->SetDefaultCallingConvention(o32BE);
+		r5900b->SetDefaultCallingConvention(o32BE);
 		mips64eb->RegisterCallingConvention(n64BE);
 		mips64eb->SetDefaultCallingConvention(n64BE);
 
 		MipsLinuxSyscallCallingConvention* linuxSyscallLE = new MipsLinuxSyscallCallingConvention(mipsel);
+		MipsLinuxSyscallCallingConvention* linuxSyscallr5900LE = new MipsLinuxSyscallCallingConvention(r5900l);
 		MipsLinuxSyscallCallingConvention* linuxSyscallBE = new MipsLinuxSyscallCallingConvention(mipseb);
+		MipsLinuxSyscallCallingConvention* linuxSyscallr5900BE = new MipsLinuxSyscallCallingConvention(r5900b);
 		mipsel->RegisterCallingConvention(linuxSyscallLE);
+		r5900l->RegisterCallingConvention(linuxSyscallr5900LE);
 		mipseb->RegisterCallingConvention(linuxSyscallBE);
+		r5900b->RegisterCallingConvention(linuxSyscallr5900BE);
 
 		mipsel->RegisterCallingConvention(new MipsLinuxRtlResolveCallingConvention(mipsel));
+		r5900l->RegisterCallingConvention(new MipsLinuxRtlResolveCallingConvention(r5900l));
 		mipseb->RegisterCallingConvention(new MipsLinuxRtlResolveCallingConvention(mipseb));
+		r5900b->RegisterCallingConvention(new MipsLinuxRtlResolveCallingConvention(r5900b));
 		mips64eb->RegisterCallingConvention(new MipsLinuxRtlResolveCallingConvention(mips64eb));
 
 		/* function recognizers */
 		mipsel->RegisterFunctionRecognizer(new MipsImportedFunctionRecognizer());
 		mipseb->RegisterFunctionRecognizer(new MipsImportedFunctionRecognizer());
+		r5900l->RegisterFunctionRecognizer(new MipsImportedFunctionRecognizer());
+		r5900b->RegisterFunctionRecognizer(new MipsImportedFunctionRecognizer());
 
 		mipsel->RegisterRelocationHandler("ELF", new MipsElfRelocationHandler());
 		mipseb->RegisterRelocationHandler("ELF", new MipsElfRelocationHandler());
+		r5900l->RegisterRelocationHandler("ELF", new MipsElfRelocationHandler());
+		r5900b->RegisterRelocationHandler("ELF", new MipsElfRelocationHandler());
 		mips64eb->RegisterRelocationHandler("ELF", new MipsElfRelocationHandler());
 
 		// Register the architectures with the binary format parsers so that they know when to use
