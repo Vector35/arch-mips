@@ -1591,7 +1591,7 @@ uint32_t mips_decompose_instruction(
 					{
 						MIPS_BC2F,    // 01000:00
 						MIPS_BC2T,    // 01000:01
-				        MIPS_BC2FL,   // 01000:10
+						MIPS_BC2FL,   // 01000:10
 						MIPS_BC2TL   // 01000:11
 					};
 					instruction->operation = opmap[ins.r.rt & 3];
