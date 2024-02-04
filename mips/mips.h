@@ -960,7 +960,7 @@ namespace mips
 		MIPS_32,
 		MIPS_R5900,
 		MIPS_64,
-		MIPS_VERSION_END,
+		MIPS_VERSION_END
 	};
 
 #ifndef __cplusplus
