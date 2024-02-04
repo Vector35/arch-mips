@@ -179,6 +179,7 @@ static const char* GetRelocationString(ElfMipsRelocationType rel)
 class MipsArchitecture: public Architecture
 {
 protected:
+	bool m_userWarnedAboutDelaySlots = false;
 	MipsVersion m_version;
 	size_t m_bits;
 	BNEndianness m_endian;
@@ -483,7 +484,16 @@ public:
 		{
 			if (len < 8)
 			{
-				LogWarn("Can not lift instruction with delay slot @ 0x%08" PRIx64, addr);
+				if (!m_userWarnedAboutDelaySlots)
+				{
+
+					LogWarn("Can not lift instruction with delay slot @ 0x%08" PRIx64 "\n"
+							"Any future delay slot errors will be printed as debug logs\n"
+							"and can be viewed by setting the log capture level to debug.", addr);
+					m_userWarnedAboutDelaySlots = true;
+				}
+				else
+					LogDebug("Can not lift instruction with delay slot @ 0x%08" PRIx64, addr);
 				return false;
 			}
 
